@@ -547,6 +547,9 @@
                                     <ColumnDefinition Width="Auto"/> <!-- Home -->
                                     <ColumnDefinition Width="Auto"/> <!-- Lock/Info -->
                                     <ColumnDefinition Width="*"/>    <!-- URL Bar -->
+                                    <ColumnDefinition Width="Auto"/> <!-- Screenshot -->
+                                    <ColumnDefinition Width="Auto"/> <!-- Paste -->
+                                    <ColumnDefinition Width="Auto"/> <!-- Enter -->
                                     <ColumnDefinition Width="Auto"/> <!-- Go -->
                                 </Grid.ColumnDefinitions>
 
@@ -607,8 +610,35 @@
                                          KeyDown="BrowserUrlBar_KeyDown"
                                          WindowChrome.IsHitTestVisibleInChrome="True"/>
 
+                                <!-- Screenshot Button -->
+                                <Button Grid.Column="6" x:Name="BrowserScreenshotBtn"
+                                        Style="{StaticResource IconButton}" Width="30" Height="30"
+                                        Click="BrowserScreenshotBtn_Click" Margin="2,0"
+                                        WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="Take Screenshot (Copies to clipboard)">
+                                    <Path Data="M4 4h3l2-2h6l2 2h3c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2zm8 3c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zm0 8c-1.65 0-3-1.35-3-3s1.35-3 3-3 3 1.35 3 3-1.35 3-3 3zm6-5h-1c-.55 0-1-.45-1-1s.45-1 1-1h1c.55 0 1 .45 1 1s-.45 1-1 1z" 
+                                          Fill="#8A8A8C" Width="14" Height="14" Stretch="Uniform"/>
+                                </Button>
+
+                                <!-- Paste Button -->
+                                <Button Grid.Column="7" x:Name="BrowserPasteBtn"
+                                        Style="{StaticResource IconButton}" Width="30" Height="30"
+                                        Click="BrowserPasteBtn_Click" Margin="2,0"
+                                        WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="Paste Clipboard to Webpage (Ctrl+V)">
+                                    <Path Data="M19 2h-4.18C14.4.84 13.3 0 12 0c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm7 18H5V4h2v3h10V4h2v16z" 
+                                          Fill="#8A8A8C" Width="13" Height="13" Stretch="Uniform"/>
+                                </Button>
+
+                                <!-- Enter Button -->
+                                <Button Grid.Column="8" x:Name="BrowserEnterBtn"
+                                        Style="{StaticResource IconButton}" Width="30" Height="30"
+                                        Click="BrowserEnterBtn_Click" Margin="2,0"
+                                        WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="Simulate Enter Key (Submit/Send)">
+                                    <Path Data="M19 4v8H7.83l5.59-5.59L12 5l-7 7 7 7 1.41-1.41L7.83 14H21V4z" 
+                                          Fill="#8A8A8C" Width="13" Height="13" Stretch="Uniform"/>
+                                </Button>
+
                                 <!-- Go Button -->
-                                <Button Grid.Column="6" x:Name="BrowserGoBtn"
+                                <Button Grid.Column="9" x:Name="BrowserGoBtn"
                                         Style="{StaticResource ModernButton}"
                                         Width="34" Height="30" Margin="5,0,0,0" Padding="0"
                                         Click="BrowserGoBtn_Click"

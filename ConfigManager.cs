@@ -12,6 +12,11 @@ namespace InvisibleChat
         public string SystemPrompt { get; set; } = "You are a helpful, concise AI assistant. Respond clearly and briefly.";
         public bool Topmost { get; set; } = true;
         public double WindowOpacity { get; set; } = 0.92;
+        
+        // Session Restoration Properties
+        public System.Collections.Generic.List<string> OpenTabsUrls { get; set; } = new();
+        public int SelectedTabIndex { get; set; } = -1;
+        public bool IsChatTabActive { get; set; } = true;
     }
 
     public static class ConfigManager

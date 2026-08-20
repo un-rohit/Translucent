@@ -51,12 +51,46 @@ namespace InvisibleChat
         }
 
         // ─────────────────────────────────────────────────────────────────
-        // LOADED — Initialize the first browser tab
+        // LOADED — Restore browser session or initialize default tab
         // ─────────────────────────────────────────────────────────────────
         private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            // Start with one tab pointing to google.com
-            await CreateNewTabAsync("https://www.google.com");
+            var config = ConfigManager.Load();
+
+            // Restore tabs
+            if (config.OpenTabsUrls != null && config.OpenTabsUrls.Count > 0)
+            {
+                // Create all saved tabs
+                for (int i = 0; i < config.OpenTabsUrls.Count; i++)
+                {
+                    await CreateNewTabAsync(config.OpenTabsUrls[i]);
+                }
+
+                // Select the correct saved tab
+                int selectIndex = 0;
+                if (config.SelectedTabIndex >= 0 && config.SelectedTabIndex < _browserTabs.Count)
+                {
+                    selectIndex = config.SelectedTabIndex;
+                }
+                await SelectTabAsync(_browserTabs[selectIndex]);
+            }
+            else
+            {
+                // Fallback: Start with one tab pointing to google.com if no saved session
+                await CreateNewTabAsync("https://www.google.com");
+            }
+
+            // Restore chat/browser active state
+            if (!config.IsChatTabActive)
+            {
+                // Trigger Browser tab activation
+                BrowserTabBtn_Click(this, new RoutedEventArgs());
+            }
+            else
+            {
+                // Default is Chat tab active
+                ChatTabBtn_Click(this, new RoutedEventArgs());
+            }
         }
 
         private async System.Threading.Tasks.Task EnsureWebViewEnvAsync()
@@ -102,6 +136,7 @@ namespace InvisibleChat
             _browserTabs.Add(newTab);
             _webViews[newTab] = webView;
             BrowserTabsContainer.Children.Add(webView);
+            SaveBrowserSession();
 
             // Select it
             await SelectTabAsync(newTab);
@@ -165,6 +200,8 @@ namespace InvisibleChat
                                 string script = GetOpacityScript(vm.WindowOpacity);
                                 webView.CoreWebView2.ExecuteScriptAsync(script);
                             }
+
+                            SaveBrowserSession();
                         });
                     };
 
@@ -229,6 +266,7 @@ namespace InvisibleChat
             {
                 UpdateBookmarksBarVisibility(_activeTab.Url);
             }
+            SaveBrowserSession();
             await System.Threading.Tasks.Task.CompletedTask;
         }
 
@@ -270,6 +308,11 @@ namespace InvisibleChat
             {
                 int newIndex = Math.Min(index, _browserTabs.Count - 1);
                 await SelectTabAsync(_browserTabs[newIndex]);
+            }
+            else
+            {
+                // SelectTabAsync saves the session, but if we closed a background tab, we need to save here
+                SaveBrowserSession();
             }
         }
 
@@ -318,6 +361,178 @@ namespace InvisibleChat
             if (sender is MenuItem menuItem && menuItem.DataContext is BrowserTab tab)
             {
                 await CloseTabAsync(tab);
+            }
+        }
+
+        [System.Runtime.InteropServices.DllImport("gdi32.dll")]
+        [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+        private static extern bool DeleteObject(IntPtr hObject);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
+
+        private const byte VK_CONTROL = 0x11;
+        private const byte VK_V = 0x56;
+        private const byte VK_RETURN = 0x0D;
+        private const uint KEYEVENTF_KEYUP = 0x0002;
+
+        private async void BrowserPasteBtn_Click(object sender, RoutedEventArgs e)
+        {
+            if (_activeTab == null || !_webViews.TryGetValue(_activeTab, out var webView)) return;
+
+            var btn = sender as System.Windows.Controls.Button;
+            string originalTip = btn?.ToolTip as string ?? "Paste Clipboard";
+
+            try
+            {
+                // 1. Focus the WebView control to receive keyboard input
+                webView.Focus();
+
+                // Also request inner document focus via script to be extra robust
+                if (webView.CoreWebView2 != null)
+                {
+                    await webView.CoreWebView2.ExecuteScriptAsync("window.focus();");
+                }
+
+                // Tiny delay to ensure focus is completed
+                await System.Threading.Tasks.Task.Delay(50);
+
+                // 2. Simulate pressing Ctrl+V
+                // Press Control
+                keybd_event(VK_CONTROL, 0, 0, UIntPtr.Zero);
+                // Press V
+                keybd_event(VK_V, 0, 0, UIntPtr.Zero);
+
+                // Release V
+                keybd_event(VK_V, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                // Release Control
+                keybd_event(VK_CONTROL, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+
+                // 3. Show success visual feedback
+                if (btn != null)
+                {
+                    btn.ToolTip = "✓ Pasted!";
+                    btn.Opacity = 0.5;
+                    await System.Threading.Tasks.Task.Delay(1000);
+                    btn.ToolTip = originalTip;
+                    btn.Opacity = 1.0;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Paste simulation failed: {ex.Message}");
+            }
+        }
+
+        private async void BrowserEnterBtn_Click(object sender, RoutedEventArgs e)
+        {
+            if (_activeTab == null || !_webViews.TryGetValue(_activeTab, out var webView)) return;
+
+            var btn = sender as System.Windows.Controls.Button;
+            string originalTip = btn?.ToolTip as string ?? "Send/Enter";
+
+            try
+            {
+                // 1. Focus the WebView control to receive keyboard input
+                webView.Focus();
+
+                // Also request inner document focus via script to be extra robust
+                if (webView.CoreWebView2 != null)
+                {
+                    await webView.CoreWebView2.ExecuteScriptAsync("window.focus();");
+                }
+
+                // Tiny delay to ensure focus is completed
+                await System.Threading.Tasks.Task.Delay(50);
+
+                // 2. Simulate pressing Enter
+                // Press Enter
+                keybd_event(VK_RETURN, 0, 0, UIntPtr.Zero);
+
+                // Release Enter
+                keybd_event(VK_RETURN, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+
+                // 3. Show success visual feedback
+                if (btn != null)
+                {
+                    btn.ToolTip = "✓ Sent!";
+                    btn.Opacity = 0.5;
+                    await System.Threading.Tasks.Task.Delay(1000);
+                    btn.ToolTip = originalTip;
+                    btn.Opacity = 1.0;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Enter key simulation failed: {ex.Message}");
+            }
+        }
+
+        private async void BrowserScreenshotBtn_Click(object sender, RoutedEventArgs e)
+        {
+            var btn = sender as System.Windows.Controls.Button;
+            if (btn == null) return;
+
+            string originalTip = btn.ToolTip as string ?? "Take Screenshot";
+
+            try
+            {
+                // Temporarily hide our window to take a screenshot of what's behind it
+                double oldOpacity = this.Opacity;
+                this.Opacity = 0;
+
+                // Small delay to allow the window to disappear from screen rendering
+                await System.Threading.Tasks.Task.Delay(150);
+
+                // Determine screen dimensions
+                int screenLeft = (int)System.Windows.SystemParameters.VirtualScreenLeft;
+                int screenTop = (int)System.Windows.SystemParameters.VirtualScreenTop;
+                int screenWidth = (int)System.Windows.SystemParameters.VirtualScreenWidth;
+                int screenHeight = (int)System.Windows.SystemParameters.VirtualScreenHeight;
+
+                using (var bmp = new System.Drawing.Bitmap(screenWidth, screenHeight))
+                {
+                    using (var g = System.Drawing.Graphics.FromImage(bmp))
+                    {
+                        g.CopyFromScreen(screenLeft, screenTop, 0, 0, bmp.Size);
+                    }
+
+                    // Convert Bitmap to BitmapSource and copy to clipboard
+                    var hBitmap = bmp.GetHbitmap();
+                    try
+                    {
+                        var bitmapSource = System.Windows.Interop.Imaging.CreateBitmapSourceFromHBitmap(
+                            hBitmap,
+                            IntPtr.Zero,
+                            System.Windows.Int32Rect.Empty,
+                            System.Windows.Media.Imaging.BitmapSizeOptions.FromEmptyOptions());
+
+                        System.Windows.Clipboard.SetImage(bitmapSource);
+                    }
+                    finally
+                    {
+                        // Clean up GDI handle to prevent memory leak
+                        DeleteObject(hBitmap);
+                    }
+                }
+
+                // Restore opacity
+                this.Opacity = oldOpacity;
+
+                // Show success visual feedback on the button tooltip
+                btn.ToolTip = "✓ Copied to Clipboard!";
+                btn.Opacity = 0.5;
+
+                await System.Threading.Tasks.Task.Delay(1200);
+
+                btn.ToolTip = originalTip;
+                btn.Opacity = 1.0;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Screenshot capture failed: {ex.Message}");
+                // Restore opacity in case of error
+                this.Opacity = 1.0;
             }
         }
 
@@ -481,6 +696,35 @@ namespace InvisibleChat
             }
         }
 
+        private void SaveBrowserSession()
+        {
+            try
+            {
+                var config = ConfigManager.Load();
+
+                config.IsChatTabActive = _isChatTabActive;
+
+                config.OpenTabsUrls.Clear();
+                foreach (var tab in _browserTabs)
+                {
+                    string url = tab.Url;
+                    if (_webViews.TryGetValue(tab, out var webView) && webView.Source != null)
+                    {
+                        url = webView.Source.ToString();
+                    }
+                    config.OpenTabsUrls.Add(url);
+                }
+
+                config.SelectedTabIndex = _activeTab != null ? _browserTabs.IndexOf(_activeTab) : -1;
+
+                ConfigManager.Save(config);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to save browser session: {ex.Message}");
+            }
+        }
+
         private void UpdateBookmarksBarVisibility(string url)
         {
             if (string.IsNullOrWhiteSpace(url))
@@ -576,6 +820,7 @@ namespace InvisibleChat
             TitleTabsPanel.Visibility = Visibility.Collapsed;
 
             Title = "Invisible Chat";
+            SaveBrowserSession();
         }
 
         private void BrowserTabBtn_Click(object sender, RoutedEventArgs e)
@@ -606,6 +851,7 @@ namespace InvisibleChat
 
             BrowserUrlBar.Focus();
             BrowserUrlBar.SelectAll();
+            SaveBrowserSession();
         }
 
         // ─────────────────────────────────────────────────────────────────
