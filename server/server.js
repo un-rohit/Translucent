@@ -61,6 +61,9 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Favicon handler
+app.get('/favicon.ico', (req, res) => res.status(204).end());
+
 // ─────────────────────────────────────────────────────────────────
 // Authentication Helpers
 // ─────────────────────────────────────────────────────────────────
@@ -337,6 +340,17 @@ app.post('/api/admin/settings', verifyAdminToken, (req, res) => {
     }
 
     res.json({ message: 'Settings updated successfully' });
+});
+
+// Global error handling middleware
+app.use((err, req, res, next) => {
+    if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+        return res.status(400).json({ error: 'Malformed JSON in request payload' });
+    }
+    console.error('Unhandled Server Error:', err);
+    if (!res.headersSent) {
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
 });
 
 // Start Server

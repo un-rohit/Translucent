@@ -356,7 +356,7 @@
                 if (!res.ok) throw new Error(data.error || 'Authentication failed');
 
                 // 2. Transmit session token & user info back to Desktop App local listener
-                const callbackUrl = `http://127.0.0.1:${desktopPort}/callback?token=${encodeURIComponent(data.token)}&email=${encodeURIComponent(data.user.email)}&name=${encodeURIComponent(data.user.name)}&status=${encodeURIComponent(data.user.status)}`;
+                const callbackUrl = `http://127.0.0.1:${desktopPort}/callback/?token=${encodeURIComponent(data.token)}&email=${encodeURIComponent(data.user.email)}&name=${encodeURIComponent(data.user.name)}&status=${encodeURIComponent(data.user.status)}`;
 
                 try {
                     await fetch(callbackUrl, { mode: 'no-cors' });
