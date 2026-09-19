@@ -29,7 +29,7 @@ namespace InvisibleChat
         public string UserEmail { get; set; } = string.Empty;
         public string UserName { get; set; } = string.Empty;
         public string UserAvatarUrl { get; set; } = string.Empty;
-        public string AuthServerUrl { get; set; } = "http://localhost:3000";
+        public string AuthServerUrl { get; set; } = "https://translucent-livid.vercel.app";
         public bool IsSubscribedCached { get; set; } = false;
         public string SubscriptionStatus { get; set; } = "pending";
     }
