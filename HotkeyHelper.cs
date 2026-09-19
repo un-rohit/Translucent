@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Windows.Interop;
 
@@ -20,45 +21,71 @@ namespace InvisibleChat
         private const int WM_HOTKEY = 0x0312;
 
         private readonly IntPtr _hWnd;
-        private readonly int _id;
         private readonly HwndSource _source;
-        private readonly Action _onPressed;
-        private bool _isRegistered = false;
+        private readonly Dictionary<int, Action> _hotkeyActions = new();
+        private readonly List<int> _registeredIds = new();
 
-        public HotkeyHelper(IntPtr hWnd, int id, uint modifiers, uint virtualKey, Action onPressed)
+        public HotkeyHelper(IntPtr hWnd)
         {
             _hWnd = hWnd;
-            _id = id;
-            _onPressed = onPressed ?? throw new ArgumentNullException(nameof(onPressed));
-
             _source = HwndSource.FromHwnd(_hWnd) ?? throw new InvalidOperationException("Could not create HwndSource from window handle.");
             _source.AddHook(HwndHook);
+        }
 
-            _isRegistered = RegisterHotKey(_hWnd, _id, modifiers, virtualKey);
-            if (!_isRegistered)
+        public bool Register(int id, uint modifiers, uint virtualKey, Action onPressed)
+        {
+            if (_hotkeyActions.ContainsKey(id))
+            {
+                Unregister(id);
+            }
+
+            _hotkeyActions[id] = onPressed ?? throw new ArgumentNullException(nameof(onPressed));
+            bool success = RegisterHotKey(_hWnd, id, modifiers, virtualKey);
+            if (success)
+            {
+                _registeredIds.Add(id);
+            }
+            else
             {
                 int error = Marshal.GetLastWin32Error();
-                System.Diagnostics.Debug.WriteLine($"Failed to register hotkey. Error code: {error}");
+                System.Diagnostics.Debug.WriteLine($"Failed to register hotkey {id}. Error code: {error}");
             }
+            return success;
+        }
+
+        public bool Unregister(int id)
+        {
+            _hotkeyActions.Remove(id);
+            if (_registeredIds.Contains(id))
+            {
+                _registeredIds.Remove(id);
+                return UnregisterHotKey(_hWnd, id);
+            }
+            return false;
         }
 
         private IntPtr HwndHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
         {
-            if (msg == WM_HOTKEY && wParam.ToInt32() == _id)
+            if (msg == WM_HOTKEY)
             {
-                _onPressed.Invoke();
-                handled = true;
+                int id = wParam.ToInt32();
+                if (_hotkeyActions.TryGetValue(id, out var action))
+                {
+                    action.Invoke();
+                    handled = true;
+                }
             }
             return IntPtr.Zero;
         }
 
         public void Dispose()
         {
-            if (_isRegistered)
+            foreach (var id in _registeredIds)
             {
-                UnregisterHotKey(_hWnd, _id);
-                _isRegistered = false;
+                UnregisterHotKey(_hWnd, id);
             }
+            _registeredIds.Clear();
+            _hotkeyActions.Clear();
             _source?.RemoveHook(HwndHook);
         }
     }

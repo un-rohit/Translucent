@@ -21,6 +21,7 @@ namespace InvisibleChat
             
             DispatcherUnhandledException += (s, ev) => {
                 LogError("Dispatcher Unhandled Exception", ev.Exception);
+                ev.Handled = true;
             };
 
             // Single instance lock using exclusive file sharing

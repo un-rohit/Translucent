@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
@@ -15,67 +16,83 @@ namespace InvisibleChat
         public ChatService()
         {
             _httpClient = new HttpClient();
-            _httpClient.Timeout = TimeSpan.FromSeconds(60);
+            _httpClient.Timeout = TimeSpan.FromSeconds(90);
         }
 
-        // Detect if the configured endpoint is a Gemini API endpoint
         private bool IsGeminiApi(string apiUrl)
         {
             return apiUrl.Contains("googleapis.com", StringComparison.OrdinalIgnoreCase) ||
                    apiUrl.Contains("generativelanguage", StringComparison.OrdinalIgnoreCase);
         }
 
-        public async Task<string> SendMessageAsync(List<ChatMessage> conversationHistory, AppConfig config)
+        // ──────────────────────────────────────────────────────────────────────
+        // STREAMING API DISPATCHER
+        // ──────────────────────────────────────────────────────────────────────
+        public async IAsyncEnumerable<string> StreamMessageAsync(List<ChatMessage> conversationHistory, AppConfig config)
         {
             if (string.IsNullOrWhiteSpace(config.ApiKey))
             {
-                await Task.Delay(600);
-                return "Please enter your **Gemini API Key** in Settings (⚙️ icon) to start chatting!\n\n" +
-                       "You can get a free key at **aistudio.google.com/apikey**.\n\n" +
-                       "Once you paste it in Settings, messages will be sent to **Gemini 2.0 Flash**.";
+                yield return "Please enter your **Gemini API Key** in Settings (⚙️ icon) to start chatting!\n\n" +
+                             "You can get a free key at **aistudio.google.com/apikey**.";
+                yield break;
             }
 
-            try
+            IAsyncEnumerable<string> stream;
+            if (IsGeminiApi(config.ApiUrl))
             {
-                if (IsGeminiApi(config.ApiUrl))
-                {
-                    return await SendGeminiAsync(conversationHistory, config);
-                }
-                else
-                {
-                    return await SendOpenAIAsync(conversationHistory, config);
-                }
+                stream = StreamGeminiAsync(conversationHistory, config);
             }
-            catch (Exception ex)
+            else
             {
-                return $"⚠️ Error connecting to AI API:\n{ex.Message}";
+                stream = StreamOpenAIAsync(conversationHistory, config);
+            }
+
+            await foreach (var token in stream)
+            {
+                yield return token;
             }
         }
 
         // ──────────────────────────────────────────────────────────────────────
-        // GEMINI API
-        // Endpoint: https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}
+        // GEMINI STREAMING (streamGenerateContent?alt=sse)
         // ──────────────────────────────────────────────────────────────────────
-        private async Task<string> SendGeminiAsync(List<ChatMessage> history, AppConfig config)
+        private async IAsyncEnumerable<string> StreamGeminiAsync(List<ChatMessage> history, AppConfig config)
         {
-            string model = string.IsNullOrWhiteSpace(config.ModelName) ? "gemini-3.7-flash" : config.ModelName;
-            string url = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={config.ApiKey}";
+            string model = string.IsNullOrWhiteSpace(config.ModelName) ? "gemini-2.0-flash" : config.ModelName;
+            string url = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:streamGenerateContent?alt=sse&key={config.ApiKey}";
 
             var contents = new List<object>();
-
-            // Map conversation history to Gemini format
             foreach (var msg in history)
             {
+                var parts = new List<object>();
+                if (!string.IsNullOrEmpty(msg.Content))
+                {
+                    parts.Add(new { text = msg.Content });
+                }
+                if (!string.IsNullOrEmpty(msg.ImageBase64))
+                {
+                    parts.Add(new
+                    {
+                        inline_data = new
+                        {
+                            mime_type = "image/png",
+                            data = msg.ImageBase64
+                        }
+                    });
+                }
+                if (parts.Count == 0)
+                {
+                    parts.Add(new { text = " " });
+                }
+
                 contents.Add(new
                 {
                     role = msg.IsUser ? "user" : "model",
-                    parts = new[] { new { text = msg.Content } }
+                    parts = parts
                 });
             }
 
             object requestBody;
-
-            // Include system instruction if present
             if (!string.IsNullOrWhiteSpace(config.SystemPrompt))
             {
                 requestBody = new
@@ -88,7 +105,7 @@ namespace InvisibleChat
                     generationConfig = new
                     {
                         temperature = 0.7,
-                        maxOutputTokens = 2048
+                        maxOutputTokens = 3072
                     }
                 };
             }
@@ -100,50 +117,87 @@ namespace InvisibleChat
                     generationConfig = new
                     {
                         temperature = 0.7,
-                        maxOutputTokens = 2048
+                        maxOutputTokens = 3072
                     }
                 };
             }
 
             var json = JsonSerializer.Serialize(requestBody);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
+            using var request = new HttpRequestMessage(HttpMethod.Post, url)
+            {
+                Content = new StringContent(json, Encoding.UTF8, "application/json")
+            };
 
-            var response = await _httpClient.PostAsync(url, content);
-            var responseText = await response.Content.ReadAsStringAsync();
+            HttpResponseMessage? response = null;
+            string? connError = null;
+            try
+            {
+                response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+            }
+            catch (Exception ex)
+            {
+                connError = ex.Message;
+            }
+
+            if (connError != null || response == null)
+            {
+                yield return $"⚠️ Connection error: {connError ?? "Failed to connect"}";
+                yield break;
+            }
 
             if (!response.IsSuccessStatusCode)
             {
-                // Try to extract a readable error message from Gemini's error format
-                try
-                {
-                    using var doc = JsonDocument.Parse(responseText);
-                    var errorMsg = doc.RootElement
-                        .GetProperty("error")
-                        .GetProperty("message")
-                        .GetString();
-                    return $"⚠️ Gemini API Error: {errorMsg}";
-                }
-                catch
-                {
-                    return $"⚠️ Gemini API Error ({response.StatusCode}): {responseText}";
-                }
+                var errorText = await response.Content.ReadAsStringAsync();
+                yield return $"⚠️ Gemini Error ({response.StatusCode}): {errorText}";
+                yield break;
             }
 
-            // Parse Gemini response
-            using var resDoc = JsonDocument.Parse(responseText);
-            return resDoc.RootElement
-                .GetProperty("candidates")[0]
-                .GetProperty("content")
-                .GetProperty("parts")[0]
-                .GetProperty("text")
-                .GetString() ?? "Empty response from Gemini.";
+            using var stream = await response.Content.ReadAsStreamAsync();
+            using var reader = new StreamReader(stream);
+
+            while (!reader.EndOfStream)
+            {
+                var line = await reader.ReadLineAsync();
+                if (string.IsNullOrWhiteSpace(line)) continue;
+
+                if (line.StartsWith("data: "))
+                {
+                    var dataJson = line.Substring(6).Trim();
+                    if (string.IsNullOrWhiteSpace(dataJson)) continue;
+
+                    string? token = null;
+                    try
+                    {
+                        using var doc = JsonDocument.Parse(dataJson);
+                        if (doc.RootElement.TryGetProperty("candidates", out var candidates) &&
+                            candidates.GetArrayLength() > 0)
+                        {
+                            var candidate = candidates[0];
+                            if (candidate.TryGetProperty("content", out var contentElem) &&
+                                contentElem.TryGetProperty("parts", out var partsElem) &&
+                                partsElem.GetArrayLength() > 0)
+                            {
+                                if (partsElem[0].TryGetProperty("text", out var textElem))
+                                {
+                                    token = textElem.GetString();
+                                }
+                            }
+                        }
+                    }
+                    catch { }
+
+                    if (!string.IsNullOrEmpty(token))
+                    {
+                        yield return token;
+                    }
+                }
+            }
         }
 
         // ──────────────────────────────────────────────────────────────────────
-        // OPENAI-COMPATIBLE API
-        // Works with OpenAI, Groq, Together AI, Ollama (local), LM Studio, etc.
+        // OPENAI STREAMING (stream: true)
         // ──────────────────────────────────────────────────────────────────────
-        private async Task<string> SendOpenAIAsync(List<ChatMessage> history, AppConfig config)
+        private async IAsyncEnumerable<string> StreamOpenAIAsync(List<ChatMessage> history, AppConfig config)
         {
             string url = $"{config.ApiUrl.TrimEnd('/')}/chat/completions";
 
@@ -152,40 +206,118 @@ namespace InvisibleChat
             {
                 messages.Add(new { role = "system", content = config.SystemPrompt });
             }
+
             foreach (var msg in history)
             {
-                messages.Add(new { role = msg.IsUser ? "user" : "assistant", content = msg.Content });
+                if (!string.IsNullOrEmpty(msg.ImageBase64))
+                {
+                    messages.Add(new
+                    {
+                        role = msg.IsUser ? "user" : "assistant",
+                        content = new object[]
+                        {
+                            new { type = "text", text = msg.Content ?? "" },
+                            new { type = "image_url", image_url = new { url = $"data:image/png;base64,{msg.ImageBase64}" } }
+                        }
+                    });
+                }
+                else
+                {
+                    messages.Add(new
+                    {
+                        role = msg.IsUser ? "user" : "assistant",
+                        content = msg.Content ?? ""
+                    });
+                }
             }
 
             var requestBody = new
             {
                 model = config.ModelName,
                 messages,
-                temperature = 0.7
+                temperature = 0.7,
+                stream = true
             };
 
             var json = JsonSerializer.Serialize(requestBody);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-            using var request = new HttpRequestMessage(HttpMethod.Post, url);
-            request.Content = content;
+            using var request = new HttpRequestMessage(HttpMethod.Post, url)
+            {
+                Content = new StringContent(json, Encoding.UTF8, "application/json")
+            };
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", config.ApiKey);
             request.Headers.Add("User-Agent", "InvisibleChatApp");
 
-            var response = await _httpClient.SendAsync(request);
-            var responseText = await response.Content.ReadAsStringAsync();
+            HttpResponseMessage? response = null;
+            string? connError = null;
+            try
+            {
+                response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+            }
+            catch (Exception ex)
+            {
+                connError = ex.Message;
+            }
+
+            if (connError != null || response == null)
+            {
+                yield return $"⚠️ Connection error: {connError ?? "Failed to connect"}";
+                yield break;
+            }
 
             if (!response.IsSuccessStatusCode)
             {
-                return $"⚠️ API Error ({response.StatusCode}): {responseText}";
+                var errorText = await response.Content.ReadAsStringAsync();
+                yield return $"⚠️ OpenAI Error ({response.StatusCode}): {errorText}";
+                yield break;
             }
 
-            using var resDoc = JsonDocument.Parse(responseText);
-            return resDoc.RootElement
-                .GetProperty("choices")[0]
-                .GetProperty("message")
-                .GetProperty("content")
-                .GetString() ?? "Empty response.";
+            using var stream = await response.Content.ReadAsStreamAsync();
+            using var reader = new StreamReader(stream);
+
+            while (!reader.EndOfStream)
+            {
+                var line = await reader.ReadLineAsync();
+                if (string.IsNullOrWhiteSpace(line)) continue;
+
+                if (line.StartsWith("data: "))
+                {
+                    var data = line.Substring(6).Trim();
+                    if (data == "[DONE]") break;
+
+                    string? token = null;
+                    try
+                    {
+                        using var doc = JsonDocument.Parse(data);
+                        if (doc.RootElement.TryGetProperty("choices", out var choices) &&
+                            choices.GetArrayLength() > 0)
+                        {
+                            var choice = choices[0];
+                            if (choice.TryGetProperty("delta", out var delta) &&
+                                delta.TryGetProperty("content", out var contentElem))
+                            {
+                                token = contentElem.GetString();
+                            }
+                        }
+                    }
+                    catch { }
+
+                    if (!string.IsNullOrEmpty(token))
+                    {
+                        yield return token;
+                    }
+                }
+            }
+        }
+
+        // Backward compatibility fallback
+        public async Task<string> SendMessageAsync(List<ChatMessage> conversationHistory, AppConfig config)
+        {
+            var sb = new StringBuilder();
+            await foreach (var chunk in StreamMessageAsync(conversationHistory, config))
+            {
+                sb.Append(chunk);
+            }
+            return sb.ToString();
         }
     }
 }

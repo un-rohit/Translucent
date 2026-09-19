@@ -213,6 +213,19 @@
                 <RowDefinition Height="*"/>    <!-- Content -->
             </Grid.RowDefinitions>
 
+            <!-- Floating Ghost Mode Notification Banner -->
+            <Border x:Name="GhostNotificationBanner"
+                    Visibility="{Binding IsGhostMode, Converter={StaticResource BoolToVis}}"
+                    VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,48,0,0"
+                    Background="#EE141416" BorderBrush="#8E2DE2" BorderThickness="1.2"
+                    CornerRadius="14" Padding="14,5" Panel.ZIndex="999" Grid.RowSpan="2">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="👻 Ghost Mode Active" Foreground="#A044EE" FontWeight="Bold" FontSize="11.5" Margin="0,0,8,0"/>
+                    <TextBlock Text="• Clicks pass through to background window" Foreground="#CCCCCC" FontSize="11" Margin="0,0,8,0"/>
+                    <TextBlock Text="(Ctrl+Shift+T to exit)" Foreground="#8E8E8E" FontSize="10.5"/>
+                </StackPanel>
+            </Border>
+
             <!-- ═══════════════════════ TITLE BAR ═══════════════════════ -->
             <Border Grid.Row="0" Background="{StaticResource HeaderBg}"
                     BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1">
@@ -259,6 +272,11 @@
                         <Border Background="#153E15" BorderBrush="#258E25" BorderThickness="1"
                                 CornerRadius="3" Padding="4,1" Margin="7,0,0,0" VerticalAlignment="Center">
                             <TextBlock Text="PROTECTED" Foreground="#44FF44" FontSize="8.5" FontWeight="Bold"/>
+                        </Border>
+                        <Border x:Name="SplitBadge" Background="#3E2060" BorderBrush="#8E2DE2" BorderThickness="1"
+                                CornerRadius="3" Padding="4,1" Margin="6,0,0,0" VerticalAlignment="Center"
+                                Visibility="{Binding IsSplitView, Converter={StaticResource BoolToVis}}">
+                            <TextBlock Text="SPLIT" Foreground="#D580FF" FontSize="8.5" FontWeight="Bold"/>
                         </Border>
                     </StackPanel>
 
@@ -337,32 +355,63 @@
 
                     <!-- Window Controls -->
                     <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="0,0,4,0">
+                        <!-- Stealth Snip Screen to AI Button -->
+                        <Button Style="{StaticResource IconButton}"
+                                Command="{Binding SnipScreenCommand}"
+                                Width="30" Height="30"
+                                WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="Stealth Snip to AI (Ctrl+Shift+S)">
+                            <Path Data="M4 4h3l2-2h6l2 2h3c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2zm8 3c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zm0 8c-1.65 0-3-1.35-3-3s1.35-3 3-3 3 1.35 3 3-1.35 3-3 3zm6-5h-1c-.55 0-1-.45-1-1s.45-1 1-1h1c.55 0 1 .45 1 1s-.45 1-1 1z"
+                                  Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                  Width="12" Height="12" Stretch="Uniform"/>
+                        </Button>
+
+                        <!-- Split View Toggle -->
+                        <Button Style="{StaticResource IconButton}"
+                                Command="{Binding ToggleSplitViewCommand}"
+                                Width="30" Height="30"
+                                WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="Toggle Split View (Browser + Chat Side-by-Side)">
+                            <Path Data="M3 3h7v18H3V3zm9 0h9v18h-9V3z"
+                                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                  StrokeThickness="1.3" Fill="Transparent"
+                                  Width="12" Height="12" Stretch="Uniform"/>
+                        </Button>
+
+                        <!-- Ghost Mode Toggle -->
+                        <Button Style="{StaticResource IconButton}"
+                                Command="{Binding ToggleGhostModeCommand}"
+                                Width="30" Height="30"
+                                WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="Ghost Mode (Clicks pass through to desktop, Ctrl+Shift+T)">
+                            <Path Data="M12 2a9 9 0 00-9 9v9l3-2 3 2 3-2 3 2 3-2 3 2v-9a9 9 0 00-9-9zm-3 8a1.5 1.5 0 110-3 1.5 1.5 0 010 3zm6 0a1.5 1.5 0 110-3 1.5 1.5 0 010 3z"
+                                  Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                  Width="12" Height="12" Stretch="Uniform"/>
+                        </Button>
+
                         <!-- Live Captions Sidebar Toggle -->
                         <Button Style="{StaticResource IconButton}"
                                 Command="{Binding ToggleCaptionsSidebarCommand}"
-                                Width="32" Height="32"
+                                Width="30" Height="30"
                                 WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="Live Captions (CC)">
                             <!-- Closed Caption icon path -->
                             <Path Data="M19 4H5c-1.11 0-2 .9-2 2v12c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-8 7H9.5v-.5h-2v3h2V13H11v1c0 .55-.45 1-1 1H6c-.55 0-1-.45-1-1V9c0-.55.45-1 1-1h4c.55 0 1 .45 1 1v2zm7 0h-1.5v-.5h-2v3h2V13H18v1c0 .55-.45 1-1 1h-4c-.55 0-1-.45-1-1V9c0-.55.45-1 1-1h4c.55 0 1 .45 1 1v2z"
                                   Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
-                                  Width="13" Height="13" Stretch="Uniform"/>
+                                  Width="12" Height="12" Stretch="Uniform"/>
                         </Button>
                         <Button Style="{StaticResource IconButton}"
                                 Command="{Binding ToggleSettingsCommand}"
-                                Width="32" Height="32"
+                                Width="30" Height="30"
                                 WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="Settings">
                             <Path Data="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z"
                                   Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
-                                  Width="13" Height="13" Stretch="Uniform"/>
+                                  Width="12" Height="12" Stretch="Uniform"/>
                         </Button>
                         <Button x:Name="MinimizeBtn" Style="{StaticResource IconButton}"
-                                Click="MinimizeBtn_Click" Width="32" Height="32"
+                                Click="MinimizeBtn_Click" Width="30" Height="30"
                                 WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="Minimize to Tray">
                             <Path Data="M0,6 L10,6" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
                                   StrokeThickness="1.5" Width="10" Height="10" Stretch="Uniform"/>
                         </Button>
                         <Button x:Name="CloseBtn" Style="{StaticResource CloseButton}"
-                                Click="CloseBtn_Click" Width="32" Height="32"
+                                Click="CloseBtn_Click" Width="30" Height="30"
                                 WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="Exit">
                             <Path Data="M0,0 L10,10 M0,10 L10,0"
                                   Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
@@ -381,10 +430,16 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <!-- Left Column: Chat or Browser Panels -->
-                <Grid Grid.Column="0">
+                <!-- Left Column: Chat and/or Browser Panels (Supports Single and Split View) -->
+                <Grid Grid.Column="0" x:Name="MainContentGrid">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition x:Name="BrowserColDef" Width="*"/>
+                        <ColumnDefinition x:Name="SplitterColDef" Width="Auto"/>
+                        <ColumnDefinition x:Name="ChatColDef" Width="*"/>
+                    </Grid.ColumnDefinitions>
+
                     <!-- ─── CHAT PANEL ─── -->
-                    <Grid x:Name="ChatPanel">
+                    <Grid x:Name="ChatPanel" Grid.Column="2">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition x:Name="SidebarColumn" Width="Auto"/>
                             <ColumnDefinition Width="*"/>
@@ -459,12 +514,26 @@
                                                         Grid.Row="1"
                                                         CornerRadius="10,10,10,3"
                                                         Background="#252528"
-                                                        Padding="10,8" MaxWidth="270">
+                                                        Padding="11,8" MaxWidth="380">
                                                     <StackPanel>
+                                                        <!-- Vision / Screen Snip image preview if attached -->
+                                                        <Border CornerRadius="6" MaxHeight="180" MaxWidth="320" Margin="0,0,0,6"
+                                                                HorizontalAlignment="Left" ClipToBounds="True" Background="#111113"
+                                                                Visibility="{Binding HasImage, Converter={StaticResource BoolToVis}}">
+                                                            <Image Source="{Binding ImageBase64, Converter={StaticResource Base64ToImg}}" Stretch="Uniform"/>
+                                                        </Border>
+
                                                         <TextBlock Text="{Binding Content}"
                                                                    TextWrapping="Wrap"
                                                                    Foreground="#F0F0F0"
-                                                                   FontSize="12.5" LineHeight="18"/>
+                                                                   FontSize="12.5" LineHeight="18"
+                                                                   FontFamily="Segoe UI, Consolas"/>
+
+                                                        <!-- Streaming cursor indicator -->
+                                                        <TextBlock Text="▍" Foreground="{StaticResource PrimaryAccent}"
+                                                                   Visibility="{Binding IsStreaming, Converter={StaticResource BoolToVis}}"
+                                                                   FontWeight="Bold" FontSize="12" Margin="0,-2,0,0"/>
+
                                                         <TextBlock Text="{Binding Timestamp, StringFormat=HH:mm}"
                                                                    FontSize="8" Foreground="{StaticResource TextMuted}"
                                                                    Margin="0,3,-2,-2" HorizontalAlignment="Right"/>
@@ -506,6 +575,7 @@
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBox Grid.Column="0" x:Name="InputTextBox"
                                              Style="{StaticResource ModernTextBox}"
@@ -515,9 +585,18 @@
                                              VerticalScrollBarVisibility="Auto"
                                              PreviewKeyDown="InputTextBox_PreviewKeyDown"
                                              WindowChrome.IsHitTestVisibleInChrome="True"/>
-                                    <Button Grid.Column="1" Style="{StaticResource ModernButton}"
+                                    <!-- Snip Button inside Input Bar -->
+                                    <Button Grid.Column="1" Style="{StaticResource IconButton}"
+                                            Command="{Binding SnipScreenCommand}"
+                                            Width="32" Height="32" Margin="5,0,0,0" VerticalAlignment="Bottom"
+                                            WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="Stealth Snip to AI (Ctrl+Shift+S)">
+                                        <Path Data="M4 4h3l2-2h6l2 2h3c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2zm8 3c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zm0 8c-1.65 0-3-1.35-3-3s1.35-3 3-3 3 1.35 3 3-1.35 3-3 3zm6-5h-1c-.55 0-1-.45-1-1s.45-1 1-1h1c.55 0 1 .45 1 1s-.45 1-1 1z"
+                                              Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                              Width="13" Height="13" Stretch="Uniform"/>
+                                    </Button>
+                                    <Button Grid.Column="2" Style="{StaticResource ModernButton}"
                                             Command="{Binding SendMessageCommand}"
-                                            Width="36" Height="36" Margin="7,0,0,0" VerticalAlignment="Bottom"
+                                            Width="36" Height="36" Margin="6,0,0,0" VerticalAlignment="Bottom"
                                             WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="Send (Enter)">
                                         <Path Data="M2 12L22 2 12 22 10 13z"
                                               Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
@@ -528,8 +607,12 @@
                         </Grid>
                     </Grid>
 
+                    <!-- GridSplitter in Split View -->
+                    <GridSplitter Grid.Column="1" x:Name="SplitViewSplitter" Width="4" HorizontalAlignment="Center"
+                                  Background="{StaticResource BorderBrush}" Visibility="Collapsed" ResizeBehavior="PreviousAndNext"/>
+
                     <!-- ─── BROWSER PANEL ─── -->
-                    <Grid x:Name="BrowserPanel" Visibility="Collapsed">
+                    <Grid x:Name="BrowserPanel" Grid.Column="0" Visibility="Collapsed">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>  <!-- Address bar -->
                             <RowDefinition Height="Auto"/>  <!-- Bookmarks/Shortcuts Bar -->
@@ -828,11 +911,21 @@
                                                     <TextBlock x:Name="CaptionText" Text="{Binding Text}" TextWrapping="Wrap" Foreground="#F0F0F0" FontSize="11.5" LineHeight="16"/>
                                                     <TextBlock Text="{Binding Timestamp}" FontSize="8" Foreground="{StaticResource TextMuted}" Margin="0,3,0,0"/>
                                                 </StackPanel>
-                                                <!-- Copy Button -->
-                                                <Button Grid.Column="1" Click="CopyCaptionBtn_Click" Tag="{Binding Text}" Style="{StaticResource IconButton}" Width="20" Height="20" Padding="3" VerticalAlignment="Top" WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="Copy Caption">
-                                                    <Path Data="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                                                          Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.2" Fill="Transparent" Stretch="Uniform"/>
-                                                </Button>
+                                                <!-- Action Buttons (Ask AI + Copy) -->
+                                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
+                                                    <Button x:Name="AskAiCaptionBtn"
+                                                            Command="{Binding DataContext.AskAiFromCaptionCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                            CommandParameter="{Binding Text}"
+                                                            Style="{StaticResource IconButton}" Width="20" Height="20" Padding="3" Margin="0,0,2,0"
+                                                            ToolTip="⚡ Send to AI Co-pilot" WindowChrome.IsHitTestVisibleInChrome="True">
+                                                        <Path Data="M11 21h-1l1-7H7.5c-.88 0-.33-.75-.31-.78C8.48 10.94 10.42 7.54 13 3h1l-1 7h3.5c.49 0 .56.33.47.51l-.07.15L11 21z"
+                                                              Fill="#F5A623" Width="10" Height="10" Stretch="Uniform"/>
+                                                    </Button>
+                                                    <Button Click="CopyCaptionBtn_Click" Tag="{Binding Text}" Style="{StaticResource IconButton}" Width="20" Height="20" Padding="3" VerticalAlignment="Top" WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="Copy Caption">
+                                                        <Path Data="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                                                              Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.2" Fill="Transparent" Stretch="Uniform"/>
+                                                    </Button>
+                                                </StackPanel>
                                             </Grid>
                                         </Border>
                                         <DataTemplate.Triggers>
@@ -840,6 +933,7 @@
                                                 <Setter TargetName="CaptionCard" Property="Background" Value="#1C2E1C"/>
                                                 <Setter TargetName="CaptionCard" Property="BorderBrush" Value="#2E5C2E"/>
                                                 <Setter TargetName="CaptionText" Property="Foreground" Value="#8AE28A"/>
+                                                <Setter TargetName="AskAiCaptionBtn" Property="Visibility" Value="Collapsed"/>
                                             </DataTrigger>
                                         </DataTemplate.Triggers>
                                     </DataTemplate>
@@ -847,19 +941,36 @@
                             </ItemsControl>
                         </ScrollViewer>
 
-                        <!-- Bottom Controls (On/Off Toggle, Clear) -->
-                        <Border Grid.Row="2" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0" Padding="10" Background="{StaticResource HeaderBg}">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <Button Grid.Column="0" x:Name="ToggleCaptionsBtn" Click="ToggleCaptionsBtn_Click" Style="{StaticResource ModernButton}" Margin="0,0,5,0" WindowChrome.IsHitTestVisibleInChrome="True">
-                                    <TextBlock x:Name="ToggleCaptionsBtnText" Text="Turn On" FontWeight="Bold" FontSize="12"/>
-                                </Button>
-                                <Button Grid.Column="1" Command="{Binding ClearCaptionsCommand}" Style="{StaticResource SecondaryButton}" Margin="5,0,0,0" Content="Clear" WindowChrome.IsHitTestVisibleInChrome="True"/>
-                            </Grid>
-                        </Border>
+                        <!-- Bottom Controls (Co-pilot Toggle, Source, On/Off, Clear) -->
+                        <StackPanel Grid.Row="2">
+                            <Border Background="#18181B" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0" Padding="8,5">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <CheckBox Grid.Column="0" IsChecked="{Binding AutoCopilot, Mode=TwoWay}" VerticalAlignment="Center" WindowChrome.IsHitTestVisibleInChrome="True">
+                                        <TextBlock Text="⚡ Auto Co-pilot" Foreground="#F5A623" FontSize="11" FontWeight="SemiBold" Margin="4,0,0,0"/>
+                                    </CheckBox>
+                                    <CheckBox Grid.Column="1" IsChecked="{Binding AudioSourceMic, Mode=TwoWay}" VerticalAlignment="Center" WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="Checked: Mic, Unchecked: Speakers/Loopback">
+                                        <TextBlock Text="🎙️ Mic" Foreground="#A0A0A5" FontSize="11" Margin="3,0,0,0"/>
+                                    </CheckBox>
+                                </Grid>
+                            </Border>
+
+                            <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0" Padding="10" Background="{StaticResource HeaderBg}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Button Grid.Column="0" x:Name="ToggleCaptionsBtn" Click="ToggleCaptionsBtn_Click" Style="{StaticResource ModernButton}" Margin="0,0,5,0" WindowChrome.IsHitTestVisibleInChrome="True">
+                                        <TextBlock x:Name="ToggleCaptionsBtnText" Text="Turn On" FontWeight="Bold" FontSize="12"/>
+                                    </Button>
+                                    <Button Grid.Column="1" Command="{Binding ClearCaptionsCommand}" Style="{StaticResource SecondaryButton}" Margin="5,0,0,0" Content="Clear" WindowChrome.IsHitTestVisibleInChrome="True"/>
+                                </Grid>
+                            </Border>
+                        </StackPanel>
                     </Grid>
                 </Border>
             </Grid>
@@ -928,9 +1039,23 @@
                                         Margin="0,0,0,14" WindowChrome.IsHitTestVisibleInChrome="True"/>
 
                                 <CheckBox IsChecked="{Binding Topmost, Mode=TwoWay}"
-                                          VerticalAlignment="Center" Margin="0,0,0,4"
+                                          VerticalAlignment="Center" Margin="0,0,0,8"
                                           WindowChrome.IsHitTestVisibleInChrome="True">
                                     <TextBlock Text="Always on top" Foreground="{StaticResource TextMain}"
+                                               FontSize="12" Margin="5,0,0,0"/>
+                                </CheckBox>
+
+                                <CheckBox IsChecked="{Binding AutoCopilot, Mode=TwoWay}"
+                                          VerticalAlignment="Center" Margin="0,0,0,8"
+                                          WindowChrome.IsHitTestVisibleInChrome="True">
+                                    <TextBlock Text="⚡ Auto Co-pilot (Auto-answer questions)" Foreground="{StaticResource TextMain}"
+                                               FontSize="12" Margin="5,0,0,0"/>
+                                </CheckBox>
+
+                                <CheckBox IsChecked="{Binding AudioSourceMic, Mode=TwoWay}"
+                                          VerticalAlignment="Center" Margin="0,0,0,4"
+                                          WindowChrome.IsHitTestVisibleInChrome="True">
+                                    <TextBlock Text="🎙️ Use Microphone for Captions" Foreground="{StaticResource TextMain}"
                                                FontSize="12" Margin="5,0,0,0"/>
                                 </CheckBox>
                             </StackPanel>

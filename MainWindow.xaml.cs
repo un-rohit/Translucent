@@ -42,6 +42,17 @@ namespace InvisibleChat
             viewModel.CurrentMessages.CollectionChanged += CurrentMessages_CollectionChanged;
             viewModel.PropertyChanged += ViewModel_PropertyChanged;
 
+            viewModel.RequestSnipScreen += OnRequestSnipScreen;
+            viewModel.GhostModeChanged += OnGhostModeChanged;
+            viewModel.SplitViewChanged += OnSplitViewChanged;
+            viewModel.RequestSwitchToChat += () =>
+            {
+                if (!_isChatTabActive && !viewModel.IsSplitView)
+                {
+                    ChatTabBtn_Click(this, new RoutedEventArgs());
+                }
+            };
+
             SourceInitialized += MainWindow_SourceInitialized;
             StateChanged      += MainWindow_StateChanged;
             Loaded            += MainWindow_Loaded;
@@ -80,8 +91,13 @@ namespace InvisibleChat
                 await CreateNewTabAsync("https://www.google.com");
             }
 
-            // Restore chat/browser active state
-            if (!config.IsChatTabActive)
+            // Restore chat/browser/split active state
+            if (config.IsSplitView && DataContext is MainViewModel vm)
+            {
+                vm.IsSplitView = true;
+                ApplyLayoutMode(true);
+            }
+            else if (!config.IsChatTabActive)
             {
                 // Trigger Browser tab activation
                 BrowserTabBtn_Click(this, new RoutedEventArgs());
@@ -772,18 +788,147 @@ namespace InvisibleChat
 
             try
             {
-                _hotkeyHelper = new HotkeyHelper(
-                    handle, 12345,
-                    HotkeyHelper.MOD_CONTROL | HotkeyHelper.MOD_SHIFT,
-                    0x47,
-                    ToggleVisibility);
+                _hotkeyHelper = new HotkeyHelper(handle);
+                // Ctrl+Shift+G: Toggle Visibility
+                _hotkeyHelper.Register(9001, HotkeyHelper.MOD_CONTROL | HotkeyHelper.MOD_SHIFT, 0x47, ToggleVisibility);
+                // Ctrl+Shift+S: Stealth Screen Snip to AI
+                _hotkeyHelper.Register(9002, HotkeyHelper.MOD_CONTROL | HotkeyHelper.MOD_SHIFT, 0x53, OnRequestSnipScreen);
+                // Ctrl+Shift+T: Ghost Click-Through Mode
+                _hotkeyHelper.Register(9003, HotkeyHelper.MOD_CONTROL | HotkeyHelper.MOD_SHIFT, 0x54, ToggleGhostMode);
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Hotkey failed: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Hotkey registration failed: {ex.Message}");
             }
 
             InitializeTrayIcon();
+        }
+
+        private void OnRequestSnipScreen()
+        {
+            try
+            {
+                var snipWin = new SnipWindow();
+                if (IsVisible)
+                {
+                    snipWin.Owner = this;
+                }
+
+                if (snipWin.ShowDialog() == true && snipWin.SelectedWidth > 10 && snipWin.SelectedHeight > 10)
+                {
+                    var base64 = ScreenCaptureHelper.CaptureRegionToBase64(
+                        snipWin.SelectedX,
+                        snipWin.SelectedY,
+                        snipWin.SelectedWidth,
+                        snipWin.SelectedHeight);
+
+                    // Ensure MainWindow is visible, unminimized, and active
+                    Show();
+                    if (WindowState == WindowState.Minimized)
+                    {
+                        WindowState = WindowState.Normal;
+                    }
+                    Activate();
+
+                    if (!string.IsNullOrEmpty(base64) && DataContext is MainViewModel vm)
+                    {
+                        _ = vm.SendVisionPromptAsync(base64, "Please analyze this screenshot and provide a direct, concise solution / explanation.");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Snip failed: {ex.Message}");
+            }
+        }
+
+        private void ToggleGhostMode()
+        {
+            if (DataContext is MainViewModel vm)
+            {
+                vm.IsGhostMode = !vm.IsGhostMode;
+            }
+        }
+
+        private void OnGhostModeChanged(bool isGhost)
+        {
+            var helper = new System.Windows.Interop.WindowInteropHelper(this);
+            WindowHider.SetClickThrough(helper.Handle, isGhost);
+        }
+
+        private void OnSplitViewChanged(bool isSplit)
+        {
+            ApplyLayoutMode(isSplit);
+        }
+
+        private void ApplyLayoutMode(bool isSplit)
+        {
+            if (isSplit)
+            {
+                _chatWidth = Width;
+                _chatHeight = Height;
+                if (Width < 950) Width = 1050;
+                if (Height < 660) Height = 660;
+
+                BrowserPanel.Visibility = Visibility.Visible;
+                ChatPanel.Visibility = Visibility.Visible;
+                SplitViewSplitter.Visibility = Visibility.Visible;
+
+                Grid.SetColumn(BrowserPanel, 0);
+                Grid.SetColumnSpan(BrowserPanel, 1);
+                Grid.SetColumn(ChatPanel, 2);
+                Grid.SetColumnSpan(ChatPanel, 1);
+
+                BrowserColDef.Width = new GridLength(1.1, GridUnitType.Star);
+                ChatColDef.Width = new GridLength(1.0, GridUnitType.Star);
+
+                TitlePanel.Visibility = Visibility.Visible;
+                TitleTabsPanel.Visibility = Visibility.Visible;
+                SidebarToggleBtn.Visibility = Visibility.Visible;
+                Title = "Translucent — Split View";
+            }
+            else
+            {
+                SplitViewSplitter.Visibility = Visibility.Collapsed;
+                if (_isChatTabActive)
+                {
+                    Grid.SetColumn(ChatPanel, 0);
+                    Grid.SetColumnSpan(ChatPanel, 3);
+                    ChatPanel.Visibility = Visibility.Visible;
+                    BrowserPanel.Visibility = Visibility.Collapsed;
+
+                    ChatMenuItem.IsChecked = true;
+                    BrowserMenuItem.IsChecked = false;
+                    SidebarToggleBtn.Visibility = Visibility.Visible;
+                    TitlePanel.Visibility = Visibility.Visible;
+                    TitleTabsPanel.Visibility = Visibility.Collapsed;
+                    Title = "Invisible Chat";
+                }
+                else
+                {
+                    Grid.SetColumn(BrowserPanel, 0);
+                    Grid.SetColumnSpan(BrowserPanel, 3);
+                    BrowserPanel.Visibility = Visibility.Visible;
+                    ChatPanel.Visibility = Visibility.Collapsed;
+
+                    ChatMenuItem.IsChecked = false;
+                    BrowserMenuItem.IsChecked = true;
+                    SidebarToggleBtn.Visibility = Visibility.Collapsed;
+                    TitlePanel.Visibility = Visibility.Collapsed;
+                    TitleTabsPanel.Visibility = Visibility.Visible;
+                    if (_activeTab != null) Title = $"Browser — {_activeTab.Title}";
+                }
+            }
+        }
+
+        protected override void OnPreviewKeyDown(System.Windows.Input.KeyEventArgs e)
+        {
+            base.OnPreviewKeyDown(e);
+            if (e.Key == System.Windows.Input.Key.Escape && !InputTextBox.IsFocused && (BrowserUrlBar == null || !BrowserUrlBar.IsFocused))
+            {
+                // Panic key: instantly hide window
+                Hide();
+            }
         }
 
         // ─────────────────────────────────────────────────────────────────
@@ -801,6 +946,11 @@ namespace InvisibleChat
 
         private void ChatTabBtn_Click(object sender, RoutedEventArgs e)
         {
+            if (DataContext is MainViewModel vm && vm.IsSplitView)
+            {
+                vm.IsSplitView = false;
+            }
+
             if (_isChatTabActive) return;
             _isChatTabActive = true;
 
@@ -809,22 +959,17 @@ namespace InvisibleChat
             Width  = _chatWidth;
             Height = _chatHeight;
 
-            ChatPanel.Visibility    = Visibility.Visible;
-            BrowserPanel.Visibility = Visibility.Collapsed;
-
-            ChatMenuItem.IsChecked = true;
-            BrowserMenuItem.IsChecked = false;
-            SidebarToggleBtn.Visibility = Visibility.Visible;
-
-            TitlePanel.Visibility = Visibility.Visible;
-            TitleTabsPanel.Visibility = Visibility.Collapsed;
-
-            Title = "Invisible Chat";
+            ApplyLayoutMode(false);
             SaveBrowserSession();
         }
 
         private void BrowserTabBtn_Click(object sender, RoutedEventArgs e)
         {
+            if (DataContext is MainViewModel vm && vm.IsSplitView)
+            {
+                vm.IsSplitView = false;
+            }
+
             if (!_isChatTabActive) return;
             _isChatTabActive = false;
 
@@ -833,15 +978,7 @@ namespace InvisibleChat
             Width  = _browserWidth;
             Height = _browserHeight;
 
-            ChatPanel.Visibility    = Visibility.Collapsed;
-            BrowserPanel.Visibility = Visibility.Visible;
-
-            ChatMenuItem.IsChecked = false;
-            BrowserMenuItem.IsChecked = true;
-            SidebarToggleBtn.Visibility = Visibility.Collapsed;
-
-            TitlePanel.Visibility = Visibility.Collapsed;
-            TitleTabsPanel.Visibility = Visibility.Visible;
+            ApplyLayoutMode(false);
 
             if (_activeTab != null)
             {
@@ -1134,6 +1271,7 @@ namespace InvisibleChat
         }
 
         private NAudio.Wave.WasapiLoopbackCapture? _audioCapture;
+        private NAudio.Wave.WaveInEvent? _micCapture;
         private LoopbackResamplerStream? _audioStream;
 
         private System.Speech.Recognition.SpeechRecognitionEngine CreateSpeechEngine()
@@ -1193,21 +1331,8 @@ namespace InvisibleChat
                     _speechEngine = CreateSpeechEngine();
                 }
 
-                // Initialize loopback capture and the resampler stream
-                _audioCapture = new NAudio.Wave.WasapiLoopbackCapture();
                 _audioStream = new LoopbackResamplerStream();
 
-                _audioCapture.DataAvailable += (s, e) =>
-                {
-                    _audioStream.WriteData(e.Buffer, 0, e.BytesRecorded, _audioCapture.WaveFormat);
-                };
-
-                _audioCapture.RecordingStopped += (s, e) =>
-                {
-                    _audioStream?.Dispose();
-                };
-
-                // Configure SAPI to read from our custom stream
                 var audioFormat = new System.Speech.AudioFormat.SpeechAudioFormatInfo(
                     16000, 
                     System.Speech.AudioFormat.AudioBitsPerSample.Sixteen, 
@@ -1215,15 +1340,43 @@ namespace InvisibleChat
 
                 _speechEngine.SetInputToAudioStream(_audioStream, audioFormat);
 
-                // Start recording & speech recognition
-                _audioCapture.StartRecording();
-                _speechEngine.RecognizeAsync(System.Speech.Recognition.RecognizeMode.Multiple);
-
-                AddCaptionItem("🔊 System: Started system audio loopback capture.", true);
+                if (DataContext is MainViewModel vm && vm.AudioSourceMic)
+                {
+                    _micCapture = new NAudio.Wave.WaveInEvent
+                    {
+                        WaveFormat = new NAudio.Wave.WaveFormat(16000, 16, 1)
+                    };
+                    _micCapture.DataAvailable += (s, e) =>
+                    {
+                        _audioStream.WriteData(e.Buffer, 0, e.BytesRecorded, _micCapture.WaveFormat);
+                    };
+                    _micCapture.RecordingStopped += (s, e) =>
+                    {
+                        _audioStream?.Dispose();
+                    };
+                    _micCapture.StartRecording();
+                    _speechEngine.RecognizeAsync(System.Speech.Recognition.RecognizeMode.Multiple);
+                    AddCaptionItem("🎙️ System: Started microphone capture.", true);
+                }
+                else
+                {
+                    _audioCapture = new NAudio.Wave.WasapiLoopbackCapture();
+                    _audioCapture.DataAvailable += (s, e) =>
+                    {
+                        _audioStream.WriteData(e.Buffer, 0, e.BytesRecorded, _audioCapture.WaveFormat);
+                    };
+                    _audioCapture.RecordingStopped += (s, e) =>
+                    {
+                        _audioStream?.Dispose();
+                    };
+                    _audioCapture.StartRecording();
+                    _speechEngine.RecognizeAsync(System.Speech.Recognition.RecognizeMode.Multiple);
+                    AddCaptionItem("🔊 System: Started system audio loopback capture.", true);
+                }
             }
             catch (Exception ex)
             {
-                AddCaptionItem($"⚠️ Loopback speech recognition failed: {ex.Message}", true);
+                AddCaptionItem($"⚠️ Speech recognition start failed: {ex.Message}", true);
                 AddCaptionItem("💡 System: Starting fallback simulation for demonstration...", true);
                 StartSimulation();
             }
@@ -1231,20 +1384,15 @@ namespace InvisibleChat
 
         private void StopSpeechRecognition()
         {
-            try
-            {
-                _audioCapture?.StopRecording();
-            }
-            catch { }
-
-            try
-            {
-                _speechEngine?.RecognizeAsyncStop();
-            }
-            catch { }
+            try { _audioCapture?.StopRecording(); } catch { }
+            try { _micCapture?.StopRecording(); } catch { }
+            try { _speechEngine?.RecognizeAsyncStop(); } catch { }
 
             _audioCapture?.Dispose();
             _audioCapture = null;
+
+            _micCapture?.Dispose();
+            _micCapture = null;
 
             _audioStream?.Dispose();
             _audioStream = null;
@@ -1256,9 +1404,31 @@ namespace InvisibleChat
         private void SpeechEngine_SpeechRecognized(object? sender, System.Speech.Recognition.SpeechRecognizedEventArgs e)
         {
             if (string.IsNullOrWhiteSpace(e.Result.Text)) return;
+            string text = e.Result.Text;
             Dispatcher.Invoke(() =>
             {
-                AddCaptionItem(e.Result.Text, false);
+                AddCaptionItem(text, false);
+
+                if (DataContext is MainViewModel vm && vm.AutoCopilot)
+                {
+                    string lower = text.ToLowerInvariant().Trim();
+                    bool isQuestion = lower.EndsWith("?") ||
+                                      lower.StartsWith("what") ||
+                                      lower.StartsWith("how") ||
+                                      lower.StartsWith("why") ||
+                                      lower.StartsWith("can you") ||
+                                      lower.StartsWith("could you") ||
+                                      lower.StartsWith("explain") ||
+                                      lower.StartsWith("describe") ||
+                                      lower.StartsWith("who") ||
+                                      lower.StartsWith("where") ||
+                                      lower.StartsWith("when");
+
+                    if (isQuestion && text.Length > 8)
+                    {
+                        _ = vm.HandleAskAiFromCaptionAsync(text);
+                    }
+                }
             });
         }
 

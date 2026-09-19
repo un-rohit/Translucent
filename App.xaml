@@ -1,8 +1,11 @@
 <Application x:Class="InvisibleChat.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:local="clr-namespace:InvisibleChat">
+             xmlns:local="clr-namespace:InvisibleChat"
+             ShutdownMode="OnExplicitShutdown">
     <Application.Resources>
+        <local:Base64ToImageConverter x:Key="Base64ToImg"/>
+
         <!-- Color Brushes -->
         <SolidColorBrush x:Key="WindowBg" Color="#121212"/>
         <SolidColorBrush x:Key="HeaderBg" Color="#1E1E1E"/>

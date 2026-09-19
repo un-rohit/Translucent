@@ -16,20 +16,28 @@ The application window utilizes Windows' native `SetWindowDisplayAffinity` API (
 * **Screenshare Proof:** When sharing your screen via Zoom, Microsoft Teams, Discord, or Slack, the Translucent window is completely omitted.
 * **Recording/Capture Proof:** It will not appear in screenshots (Snipping Tool, PrintScreen) or recording software (OBS Studio, Camtasia). To the capturing system, it is entirely transparent.
 
-### 💬 2. Dual-Engine AI Chat
-A sleek, glassmorphic chat client that connects to state-of-the-art LLMs:
-* **Gemini Native integration:** Tailored for Gemini models (like `gemini-3.7-flash`, `gemini-2.0-flash`) via AI Studio keys.
-* **OpenAI-Compatible Custom Endpoints:** Fully supports local or cloud alternatives (Ollama, LM Studio, Groq, OpenRouter) with customizable API URLs and model targets.
-* **Persona Configuration:** Change system instructions (system prompts), temperature, and parameters on the fly.
-* **Local Persistence:** Chat history sessions are automatically formatted, titled, and saved locally.
+### 📸 2. Multimodal Vision Screen Snipper (`Ctrl + Shift + S`)
+Capture any portion of your screen discreetly and query AI models with multimodal vision:
+* **Anti-Capture Overlay:** The snip selector window is itself excluded from screen capture (`WDA_EXCLUDEFROMCAPTURE`), ensuring zero flickering or detection during screen sharing.
+* **Instant Multimodal Ingestion:** Snips are converted directly to base64 images and sent to Gemini 2.0 / OpenAI Vision models.
+* **Solve Coding, Math & Documents:** Select problem statements, diagrams, or spreadsheets on your screen to receive immediate AI answers.
 
-### 🔊 3. Live System Audio Loopback Captions
-An on-demand transcription sidebar that captures whatever audio is playing through your speakers or headphones.
-* **No Microphone Required:** Directly records loopback audio from Windows using WASAPI Loopback Capture.
-* **Local STT Engine:** Resamples audio streams to 16kHz mono and feeds them to the local Windows SAPI `SpeechRecognitionEngine` for offline, latency-free transcription.
-* **Applications:** Perfect for transcribing meetings, webinars, videos, or lectures in real-time.
+### ⚡ 3. Live Meeting & Interview AI Co-pilot
+* **One-Click "⚡ Ask AI":** Beside every transcribed speech bubble in the captions panel, click to receive instant coaching, answers, or talking points without typing.
+* **Auto Co-pilot Mode:** Automatically detects question patterns in meetings or interviews and provides contextual assistance in real-time.
+* **Dual Audio Source:** Easily switch between recording what others say (Speakers Loopback via WASAPI) and what you say (Microphone via WaveIn).
 
-### 🌐 4. Stealth Multi-Tab Web Browser
+### 💬 4. Real-time Streaming AI
+* **Token-by-Token Streaming:** Uses Server-Sent Events (SSE) for Gemini (`streamGenerateContent`) and OpenAI (`stream: true`), streaming answers with a typing cursor as they generate.
+* **Multimodal Image Previews:** Attachments and snips are rendered cleanly in chat history bubbles.
+* **Dual-Engine Flexibility:** Connect to Gemini 2.0 Flash, OpenAI, Groq, Ollama, or OpenRouter with custom system prompts.
+
+### 🔀 5. Productivity Split View & 👻 Ghost Mode
+* **Split View (`Ctrl + Shift + V`):** View the private Chromium browser and AI chat side-by-side with an adjustable drag splitter.
+* **Ghost Click-Through (`Ctrl + Shift + T`):** Activates `WS_EX_TRANSPARENT`, allowing you to keep Translucent visible while clicking directly through it onto background applications.
+* **Panic Key (`Escape`):** Instantly vanishes the window to the system tray.
+
+### 🌐 6. Stealth Multi-Tab Web Browser
 An integrated Chromium-based browser utilizing Microsoft WebView2.
 * Browse the web privately within the same anti-capture frame.
 * Supports multiple tabs, bookmarks, URL navigation, and customized page-level opacity injection.
@@ -92,7 +100,11 @@ An integrated Chromium-based browser utilizing Microsoft WebView2.
 
 | Shortcut | Description | Scope |
 | :--- | :--- | :--- |
-| **`Ctrl + Shift + G`** | Hide or Show the Translucent Window | **Global** (Works anywhere in Windows) |
+| **`Ctrl + Shift + G`** | Stealth Show / Hide Translucent Window | **Global** (Works anywhere in Windows) |
+| **`Ctrl + Shift + S`** | Stealth Screen Snip & Vision Prompt | **Global** (Captures background area underneath) |
+| **`Ctrl + Shift + T`** | Toggle Ghost Mode (Click-Through Transparency) | **Global** |
+| **`Ctrl + Shift + V`** | Toggle Side-by-Side Split View (Browser & Chat) | Local / Title Bar |
+| **`Escape`** | Panic Key — Instantly Hide to Tray | Local (When not editing text) |
 | **`Enter`** | Send AI Chat Message | Local (Chat Input Focused) |
 | **`Shift + Enter`** | Insert Newline in Chat Input | Local (Chat Input Focused) |
 

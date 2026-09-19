@@ -23,3 +23,13 @@ bld/
 
 # Other files
 run_output.txt
+
+# Packaging and Installers
+*.msix
+*.appx
+*.msixbundle
+*.appxbundle
+*.cer
+*.pfx
+package_staging/
+packaging_tools/

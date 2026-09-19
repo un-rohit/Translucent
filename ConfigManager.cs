@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 
@@ -8,15 +9,20 @@ namespace InvisibleChat
     {
         public string ApiKey { get; set; } = string.Empty;
         public string ApiUrl { get; set; } = "https://generativelanguage.googleapis.com/v1beta";
-        public string ModelName { get; set; } = "gemini-3.7-flash";
-        public string SystemPrompt { get; set; } = "You are a helpful, concise AI assistant. Respond clearly and briefly.";
+        public string ModelName { get; set; } = "gemini-2.0-flash";
+        public string SystemPrompt { get; set; } = "You are a concise, sharp stealth assistant. Provide direct answers, solutions, and code without unnecessary fluff.";
         public bool Topmost { get; set; } = true;
         public double WindowOpacity { get; set; } = 0.92;
         
-        // Session Restoration Properties
-        public System.Collections.Generic.List<string> OpenTabsUrls { get; set; } = new();
+        // Session & Layout Properties
+        public List<string> OpenTabsUrls { get; set; } = new();
         public int SelectedTabIndex { get; set; } = -1;
         public bool IsChatTabActive { get; set; } = true;
+        public bool IsSplitView { get; set; } = false;
+
+        // Co-pilot & Audio Settings
+        public bool AutoCopilot { get; set; } = false;
+        public bool AudioSourceMic { get; set; } = false; // false = Loopback/Speakers, true = Microphone
     }
 
     public static class ConfigManager

@@ -68,6 +68,12 @@ namespace InvisibleChat
         private bool _isCaptionsListening;
         private ObservableCollection<CaptionItem> _captions = new();
 
+        // Advanced Stealth & Multimodal Fields
+        private bool _isSplitView;
+        private bool _isGhostMode;
+        private bool _autoCopilot;
+        private bool _audioSourceMic;
+
         // Settings Properties (bound to Settings UI)
         private string _apiKey = string.Empty;
         private string _apiUrl = string.Empty;
@@ -76,15 +82,21 @@ namespace InvisibleChat
         private double _windowOpacity = 0.92;
         private bool _topmost = true;
 
+        // Events for Window interaction
+        public event Action? RequestSnipScreen;
+        public event Action<bool>? GhostModeChanged;
+        public event Action<bool>? SplitViewChanged;
+        public event Action? RequestSwitchToChat;
+
+        public AppConfig Config => _config;
+
         public MainViewModel()
         {
             _chatService = new ChatService();
             _config = ConfigManager.Load();
 
-            // Load saved settings into VM fields
             LoadConfigToFields();
 
-            // Load history sessions
             try
             {
                 var savedSessions = ChatHistoryManager.LoadHistory();
@@ -98,7 +110,6 @@ namespace InvisibleChat
                 System.Diagnostics.Debug.WriteLine($"Failed to load history on init: {ex.Message}");
             }
 
-            // Create initial session if history is empty
             if (_sessions.Count == 0)
             {
                 CreateNewSession();
@@ -108,7 +119,7 @@ namespace InvisibleChat
                 SelectedSession = _sessions.First();
             }
 
-            // Initialize Commands
+            // Commands
             SendMessageCommand = new RelayCommand(async _ => await SendMessageAsync(), _ => CanSendMessage());
             NewSessionCommand = new RelayCommand(_ => CreateNewSession());
             DeleteSessionCommand = new RelayCommand(param => DeleteSession(param as ConversationSession));
@@ -117,9 +128,15 @@ namespace InvisibleChat
             SaveSettingsCommand = new RelayCommand(_ => SaveSettings());
             ClearHistoryCommand = new RelayCommand(_ => ClearCurrentHistory());
             
-            // Captions Commands
+            // Captions & Co-pilot Commands
             ToggleCaptionsSidebarCommand = new RelayCommand(_ => IsCaptionsSidebarVisible = !IsCaptionsSidebarVisible);
             ClearCaptionsCommand = new RelayCommand(_ => Captions.Clear());
+            AskAiFromCaptionCommand = new RelayCommand(async param => await HandleAskAiFromCaptionAsync(param as string));
+
+            // Productivity & Stealth Commands
+            SnipScreenCommand = new RelayCommand(_ => RequestSnipScreen?.Invoke());
+            ToggleSplitViewCommand = new RelayCommand(_ => IsSplitView = !IsSplitView);
+            ToggleGhostModeCommand = new RelayCommand(_ => IsGhostMode = !IsGhostMode);
         }
 
         // Properties
@@ -178,7 +195,6 @@ namespace InvisibleChat
             set => SetField(ref _isSettingsOpen, value);
         }
 
-        // Live Captions Properties
         public bool IsCaptionsSidebarVisible
         {
             get => _isCaptionsSidebarVisible;
@@ -195,6 +211,58 @@ namespace InvisibleChat
         {
             get => _captions;
             set => SetField(ref _captions, value);
+        }
+
+        public bool IsSplitView
+        {
+            get => _isSplitView;
+            set
+            {
+                if (SetField(ref _isSplitView, value))
+                {
+                    _config.IsSplitView = value;
+                    ConfigManager.Save(_config);
+                    SplitViewChanged?.Invoke(value);
+                }
+            }
+        }
+
+        public bool IsGhostMode
+        {
+            get => _isGhostMode;
+            set
+            {
+                if (SetField(ref _isGhostMode, value))
+                {
+                    GhostModeChanged?.Invoke(value);
+                }
+            }
+        }
+
+        public bool AutoCopilot
+        {
+            get => _autoCopilot;
+            set
+            {
+                if (SetField(ref _autoCopilot, value))
+                {
+                    _config.AutoCopilot = value;
+                    ConfigManager.Save(_config);
+                }
+            }
+        }
+
+        public bool AudioSourceMic
+        {
+            get => _audioSourceMic;
+            set
+            {
+                if (SetField(ref _audioSourceMic, value))
+                {
+                    _config.AudioSourceMic = value;
+                    ConfigManager.Save(_config);
+                }
+            }
         }
 
         // Settings bindings
@@ -248,12 +316,13 @@ namespace InvisibleChat
         public ICommand ToggleSettingsCommand { get; }
         public ICommand SaveSettingsCommand { get; }
         public ICommand ClearHistoryCommand { get; }
-        
-        // Captions Commands Properties
         public ICommand ToggleCaptionsSidebarCommand { get; }
         public ICommand ClearCaptionsCommand { get; }
+        public ICommand AskAiFromCaptionCommand { get; }
+        public ICommand SnipScreenCommand { get; }
+        public ICommand ToggleSplitViewCommand { get; }
+        public ICommand ToggleGhostModeCommand { get; }
 
-        // Methods
         private void LoadConfigToFields()
         {
             ApiKey = _config.ApiKey;
@@ -262,6 +331,9 @@ namespace InvisibleChat
             SystemPrompt = _config.SystemPrompt;
             WindowOpacity = _config.WindowOpacity;
             Topmost = _config.Topmost;
+            _isSplitView = _config.IsSplitView;
+            _autoCopilot = _config.AutoCopilot;
+            _audioSourceMic = _config.AudioSourceMic;
         }
 
         private void LoadSessionMessages()
@@ -289,12 +361,12 @@ namespace InvisibleChat
             InputText = string.Empty;
             IsSending = true;
 
-            // 1. Add User Message
+            // Add user message
             var userMsg = new ChatMessage { Content = rawInput, IsUser = true, Timestamp = DateTime.Now };
             CurrentMessages.Add(userMsg);
             SelectedSession.Messages.Add(userMsg);
 
-            // Update title if it is default
+            // Update title if default
             if (SelectedSession.Title == "New Conversation" && SelectedSession.Messages.Count == 1)
             {
                 string title = rawInput.Length > 25 ? rawInput.Substring(0, 22) + "..." : rawInput;
@@ -310,17 +382,101 @@ namespace InvisibleChat
             SelectedSession.LastUpdated = DateTime.Now;
             SaveHistory();
 
-            // 2. Call ChatService
-            string reply = await _chatService.SendMessageAsync(SelectedSession.Messages.ToList(), _config);
-
-            // 3. Add AI Message
-            var aiMsg = new ChatMessage { Content = reply, IsUser = false, Timestamp = DateTime.Now };
+            // Create streaming AI message
+            var aiMsg = new ChatMessage { Content = string.Empty, IsUser = false, Timestamp = DateTime.Now, IsStreaming = true };
             CurrentMessages.Add(aiMsg);
             SelectedSession.Messages.Add(aiMsg);
+
+            try
+            {
+                var historyToSend = SelectedSession.Messages.Take(SelectedSession.Messages.Count - 1).ToList();
+                await foreach (var token in _chatService.StreamMessageAsync(historyToSend, _config))
+                {
+                    aiMsg.Content += token;
+                }
+            }
+            catch (Exception ex)
+            {
+                aiMsg.Content += $"\n⚠️ Streaming Error: {ex.Message}";
+            }
+            finally
+            {
+                aiMsg.IsStreaming = false;
+                IsSending = false;
+                SelectedSession.LastUpdated = DateTime.Now;
+                SaveHistory();
+            }
+        }
+
+        public async Task SendVisionPromptAsync(string base64Image, string prompt)
+        {
+            if (SelectedSession == null)
+            {
+                CreateNewSession();
+            }
+
+            RequestSwitchToChat?.Invoke();
+            IsSending = true;
+
+            // Add user message with image attached
+            var userMsg = new ChatMessage
+            {
+                Content = prompt,
+                ImageBase64 = base64Image,
+                IsUser = true,
+                Timestamp = DateTime.Now
+            };
+            CurrentMessages.Add(userMsg);
+            SelectedSession!.Messages.Add(userMsg);
+
+            if (SelectedSession.Title == "New Conversation")
+            {
+                SelectedSession.Title = "📷 Screen Analysis";
+                var tempIndex = Sessions.IndexOf(SelectedSession);
+                if (tempIndex >= 0) Sessions[tempIndex] = SelectedSession;
+            }
+
             SelectedSession.LastUpdated = DateTime.Now;
             SaveHistory();
 
-            IsSending = false;
+            // Create streaming AI message
+            var aiMsg = new ChatMessage { Content = string.Empty, IsUser = false, Timestamp = DateTime.Now, IsStreaming = true };
+            CurrentMessages.Add(aiMsg);
+            SelectedSession.Messages.Add(aiMsg);
+
+            try
+            {
+                var historyToSend = SelectedSession.Messages.Take(SelectedSession.Messages.Count - 1).ToList();
+                await foreach (var token in _chatService.StreamMessageAsync(historyToSend, _config))
+                {
+                    aiMsg.Content += token;
+                }
+            }
+            catch (Exception ex)
+            {
+                aiMsg.Content += $"\n⚠️ Vision Error: {ex.Message}";
+            }
+            finally
+            {
+                aiMsg.IsStreaming = false;
+                IsSending = false;
+                SelectedSession.LastUpdated = DateTime.Now;
+                SaveHistory();
+            }
+        }
+
+        public async Task HandleAskAiFromCaptionAsync(string? captionText)
+        {
+            if (string.IsNullOrWhiteSpace(captionText)) return;
+
+            RequestSwitchToChat?.Invoke();
+
+            string prompt = $"Respond to or solve this question/statement concisely:\n\"{captionText.Trim()}\"";
+            InputText = prompt;
+            if (CanSendMessage())
+            {
+                await SendMessageAsync();
+            }
         }
 
         private void CreateNewSession()
@@ -372,6 +528,8 @@ namespace InvisibleChat
             _config.SystemPrompt = SystemPrompt;
             _config.WindowOpacity = WindowOpacity;
             _config.Topmost = Topmost;
+            _config.AutoCopilot = AutoCopilot;
+            _config.AudioSourceMic = AudioSourceMic;
 
             ConfigManager.Save(_config);
             IsSettingsOpen = false;
