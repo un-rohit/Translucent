@@ -148,6 +148,69 @@ namespace InvisibleChat
             if (!response.IsSuccessStatusCode)
             {
                 var errorText = await response.Content.ReadAsStringAsync();
+
+                // If high demand / 503 / 429 on experimental model, automatically fallback to stable gemini-2.0-flash
+                if ((response.StatusCode == System.Net.HttpStatusCode.ServiceUnavailable ||
+                     (int)response.StatusCode == 429 ||
+                     errorText.Contains("high demand", StringComparison.OrdinalIgnoreCase)) &&
+                    !model.Equals("gemini-2.0-flash", StringComparison.OrdinalIgnoreCase))
+                {
+                    yield return $"*[Note: {model} is experiencing high demand. Auto-switched to gemini-2.0-flash]*\n\n";
+
+                    string fallbackUrl = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:streamGenerateContent?alt=sse&key={config.ApiKey}";
+                    using var fbRequest = new HttpRequestMessage(HttpMethod.Post, fallbackUrl)
+                    {
+                        Content = new StringContent(json, Encoding.UTF8, "application/json")
+                    };
+
+                    HttpResponseMessage? fbResponse = null;
+                    try
+                    {
+                        fbResponse = await _httpClient.SendAsync(fbRequest, HttpCompletionOption.ResponseHeadersRead);
+                    }
+                    catch { }
+
+                    if (fbResponse != null && fbResponse.IsSuccessStatusCode)
+                    {
+                        using var fbStream = await fbResponse.Content.ReadAsStreamAsync();
+                        using var fbReader = new StreamReader(fbStream);
+                        while (!fbReader.EndOfStream)
+                        {
+                            var fbLine = await fbReader.ReadLineAsync();
+                            if (string.IsNullOrWhiteSpace(fbLine) || !fbLine.StartsWith("data: ")) continue;
+                            var fbDataJson = fbLine.Substring(6).Trim();
+                            if (string.IsNullOrWhiteSpace(fbDataJson)) continue;
+
+                            string? token = null;
+                            try
+                            {
+                                using var doc = JsonDocument.Parse(fbDataJson);
+                                if (doc.RootElement.TryGetProperty("candidates", out var candidates) &&
+                                    candidates.GetArrayLength() > 0)
+                                {
+                                    var candidate = candidates[0];
+                                    if (candidate.TryGetProperty("content", out var contentElem) &&
+                                        contentElem.TryGetProperty("parts", out var partsElem) &&
+                                        partsElem.GetArrayLength() > 0)
+                                    {
+                                        if (partsElem[0].TryGetProperty("text", out var textElem))
+                                        {
+                                            token = textElem.GetString();
+                                        }
+                                    }
+                                }
+                            }
+                            catch { }
+
+                            if (!string.IsNullOrEmpty(token))
+                            {
+                                yield return token;
+                            }
+                        }
+                        yield break;
+                    }
+                }
+
                 yield return $"⚠️ Gemini Error ({response.StatusCode}): {errorText}";
                 yield break;
             }
