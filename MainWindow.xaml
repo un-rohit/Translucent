@@ -510,35 +510,10 @@
                                 <ListBox ItemsSource="{Binding CurrentMessages}" Style="{StaticResource ChatListBoxStyle}">
                                     <ListBox.ItemTemplate>
                                         <DataTemplate>
-                                            <!-- Outer container gives room for the floating copy button -->
-                                            <Grid x:Name="MsgGrid" HorizontalAlignment="Left" Margin="0,4">
-                                                <Grid.RowDefinitions>
-                                                    <RowDefinition Height="Auto"/> <!-- Copy button row -->
-                                                    <RowDefinition Height="Auto"/> <!-- Bubble row      -->
-                                                </Grid.RowDefinitions>
-
-                                                <!-- ── Copy button (appears above bubble on hover) ── -->
-                                                <Button x:Name="CopyBtn"
-                                                        Grid.Row="0"
-                                                        HorizontalAlignment="Right"
-                                                        Margin="0,0,2,2"
-                                                        Style="{StaticResource IconButton}"
-                                                        Padding="4" Width="24" Height="22"
-                                                        Visibility="Collapsed"
-                                                        Tag="{Binding Content}"
-                                                        Click="CopyMessageBtn_Click"
-                                                        ToolTip="Copy message"
-                                                        WindowChrome.IsHitTestVisibleInChrome="True">
-                                                    <!-- Clipboard icon -->
-                                                    <Path Data="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                                                          Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
-                                                          StrokeThickness="1.4" Fill="Transparent"
-                                                          Width="11" Height="11" Stretch="Uniform"/>
-                                                </Button>
-
+                                            <!-- Message container -->
+                                            <Grid x:Name="MsgGrid" HorizontalAlignment="Left" Margin="0,3">
                                                 <!-- ── Message bubble ── -->
                                                 <Border x:Name="Bubble"
-                                                        Grid.Row="1"
                                                         CornerRadius="10,10,10,3"
                                                         Background="#252528"
                                                         Padding="11,8" MaxWidth="380">
@@ -561,25 +536,54 @@
                                                                    Visibility="{Binding IsStreaming, Converter={StaticResource BoolToVis}}"
                                                                    FontWeight="Bold" FontSize="12" Margin="0,-2,0,0"/>
 
-                                                        <TextBlock Text="{Binding Timestamp, StringFormat=HH:mm}"
-                                                                   FontSize="8" Foreground="{StaticResource TextMuted}"
-                                                                   Margin="0,3,-2,-2" HorizontalAlignment="Right"/>
+                                                        <!-- Inside-chat footer: Persistent Copy Button + Timestamp -->
+                                                        <Grid Margin="0,4,0,-2">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                            </Grid.ColumnDefinitions>
+
+                                                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                                                <!-- Copy clipboard button inside chat bubble (always visible) -->
+                                                                <Button x:Name="CopyBtn"
+                                                                        Style="{StaticResource IconButton}"
+                                                                        Padding="2" Width="20" Height="20" Margin="0,0,4,0"
+                                                                        Tag="{Binding Content}"
+                                                                        Click="CopyMessageBtn_Click"
+                                                                        ToolTip="Copy message to clipboard"
+                                                                        Opacity="0.75"
+                                                                        VerticalAlignment="Center"
+                                                                        WindowChrome.IsHitTestVisibleInChrome="True">
+                                                                    <!-- Clipboard icon -->
+                                                                    <Path Data="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                                                                          Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                                                          StrokeThickness="1.4" Fill="Transparent"
+                                                                          Width="11" Height="11" Stretch="Uniform"/>
+                                                                </Button>
+
+                                                                <TextBlock x:Name="TimestampText"
+                                                                           Text="{Binding Timestamp, StringFormat=HH:mm}"
+                                                                           FontSize="8.5" Foreground="{StaticResource TextMuted}"
+                                                                           VerticalAlignment="Center"/>
+                                                            </StackPanel>
+                                                        </Grid>
                                                     </StackPanel>
                                                 </Border>
                                             </Grid>
 
                                             <DataTemplate.Triggers>
-                                                <!-- Show copy button on hover -->
-                                                <Trigger SourceName="MsgGrid" Property="IsMouseOver" Value="True">
-                                                    <Setter TargetName="CopyBtn" Property="Visibility" Value="Visible"/>
+                                                <!-- Slightly highlight copy button on hover -->
+                                                <Trigger SourceName="CopyBtn" Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="CopyBtn" Property="Opacity" Value="1.0"/>
                                                 </Trigger>
 
                                                 <!-- User messages: align right, purple bubble, mirrored corners -->
                                                 <DataTrigger Binding="{Binding IsUser}" Value="True">
-                                                    <Setter TargetName="MsgGrid"  Property="HorizontalAlignment" Value="Right"/>
-                                                    <Setter TargetName="Bubble"   Property="Background"          Value="{StaticResource PrimaryAccent}"/>
-                                                    <Setter TargetName="Bubble"   Property="CornerRadius"        Value="10,10,3,10"/>
-                                                    <Setter TargetName="CopyBtn"  Property="HorizontalAlignment" Value="Left"/>
+                                                    <Setter TargetName="MsgGrid"       Property="HorizontalAlignment" Value="Right"/>
+                                                    <Setter TargetName="Bubble"        Property="Background"          Value="{StaticResource PrimaryAccent}"/>
+                                                    <Setter TargetName="Bubble"        Property="CornerRadius"        Value="10,10,3,10"/>
+                                                    <Setter TargetName="CopyBtn"       Property="Foreground"          Value="#E9D5FF"/>
+                                                    <Setter TargetName="TimestampText" Property="Foreground"          Value="#E9D5FF"/>
                                                 </DataTrigger>
                                             </DataTemplate.Triggers>
                                         </DataTemplate>
