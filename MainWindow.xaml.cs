@@ -484,6 +484,117 @@ namespace InvisibleChat
             }
         }
 
+        // ─────────────────────────────────────────────────────────────────
+        // PREDEFINED INTERVIEW PROMPTS — 1-Click Paste into Current Tab
+        // ─────────────────────────────────────────────────────────────────
+        private void BrowserPromptsMenuBtn_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is System.Windows.Controls.Button btn && btn.ContextMenu != null)
+            {
+                btn.ContextMenu.PlacementTarget = btn;
+                btn.ContextMenu.Placement = System.Windows.Controls.Primitives.PlacementMode.Top;
+                btn.ContextMenu.IsOpen = true;
+            }
+        }
+
+        private async void QuickPromptChip_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is System.Windows.Controls.Button btn && btn.Tag is string tag)
+            {
+                switch (tag)
+                {
+                    case "1":
+                        await PastePromptIntoActiveTabAsync(PredefinedPrompts.Prompt1, "Fast & Precise");
+                        break;
+                    case "2":
+                        await PastePromptIntoActiveTabAsync(PredefinedPrompts.Prompt2, "Human-Like Answer");
+                        break;
+                    case "3":
+                        await PastePromptIntoActiveTabAsync(PredefinedPrompts.Prompt3, "Technical Interview");
+                        break;
+                    case "4":
+                        await PastePromptIntoActiveTabAsync(PredefinedPrompts.Prompt4, "Ultra-Low-Latency");
+                        break;
+                    case "5":
+                        await PastePromptIntoActiveTabAsync(PredefinedPrompts.Prompt5, "Adaptive Assistant");
+                        break;
+                }
+            }
+        }
+
+        private async void Prompt1_Click(object sender, RoutedEventArgs e) =>
+            await PastePromptIntoActiveTabAsync(PredefinedPrompts.Prompt1, "Fast & Precise");
+
+        private async void Prompt2_Click(object sender, RoutedEventArgs e) =>
+            await PastePromptIntoActiveTabAsync(PredefinedPrompts.Prompt2, "Human-Like Answer");
+
+        private async void Prompt3_Click(object sender, RoutedEventArgs e) =>
+            await PastePromptIntoActiveTabAsync(PredefinedPrompts.Prompt3, "Technical Interview");
+
+        private async void Prompt4_Click(object sender, RoutedEventArgs e) =>
+            await PastePromptIntoActiveTabAsync(PredefinedPrompts.Prompt4, "Ultra-Low-Latency");
+
+        private async void Prompt5_Click(object sender, RoutedEventArgs e) =>
+            await PastePromptIntoActiveTabAsync(PredefinedPrompts.Prompt5, "Adaptive Assistant");
+
+        private async System.Threading.Tasks.Task PastePromptIntoActiveTabAsync(string promptText, string promptTitle)
+        {
+            if (_activeTab == null || !_webViews.TryGetValue(_activeTab, out var webView)) return;
+
+            try
+            {
+                // 1. Copy the predefined prompt text to clipboard
+                System.Windows.Clipboard.SetText(promptText);
+
+                // 2. Focus the WebView2 control
+                webView.Focus();
+
+                // 3. Find and focus active or target input element inside WebView2
+                if (webView.CoreWebView2 != null)
+                {
+                    string script = @"
+                        (function() {
+                            window.focus();
+                            let el = document.activeElement;
+                            if (!el || el === document.body || (el.tagName !== 'TEXTAREA' && el.tagName !== 'INPUT' && !el.isContentEditable)) {
+                                let candidate = document.querySelector('textarea, div[contenteditable=""true""], input[type=""text""], [role=""textbox""], p[data-placeholder]');
+                                if (candidate) {
+                                    candidate.focus();
+                                }
+                            }
+                        })();
+                    ";
+                    await webView.CoreWebView2.ExecuteScriptAsync(script);
+                }
+
+                await System.Threading.Tasks.Task.Delay(80);
+
+                // 4. Simulate Ctrl+V to paste with full event dispatch in React/Vue/standard DOM
+                keybd_event(VK_CONTROL, 0, 0, UIntPtr.Zero);
+                keybd_event(VK_V, 0, 0, UIntPtr.Zero);
+                keybd_event(VK_V, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                keybd_event(VK_CONTROL, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+
+                // 5. Show visual banner feedback in bottom bar
+                ShowPromptPastedFeedback(promptTitle);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to paste prompt: {ex.Message}");
+            }
+        }
+
+        private async void ShowPromptPastedFeedback(string promptTitle)
+        {
+            if (PromptPastedBanner != null && PromptPastedText != null)
+            {
+                PromptPastedText.Text = $"✓ Pasted: {promptTitle}";
+                PromptPastedBanner.Visibility = Visibility.Visible;
+                await System.Threading.Tasks.Task.Delay(2200);
+                PromptPastedBanner.Visibility = Visibility.Collapsed;
+            }
+        }
+
         private async void BrowserScreenshotBtn_Click(object sender, RoutedEventArgs e)
         {
             var btn = sender as System.Windows.Controls.Button;

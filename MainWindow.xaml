@@ -21,6 +21,33 @@
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
 
+        <!-- Sleek pill button style -->
+        <Style x:Key="BookmarkPill" TargetType="Button">
+            <Setter Property="Background" Value="#202022"/>
+            <Setter Property="Foreground" Value="#D0D0D2"/>
+            <Setter Property="Padding" Value="10,3"/>
+            <Setter Property="FontSize" Value="10.5"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Height" Value="22"/>
+            <Setter Property="Margin" Value="0,0,6,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="11" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#2D2D30"/>
+                                <Setter Property="Foreground" Value="{StaticResource TextMain}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- Modern Toggle Switch Style -->
         <Style x:Key="ToggleSwitchStyle" TargetType="{x:Type ToggleButton}">
             <Setter Property="Width" Value="34"/>
@@ -617,6 +644,7 @@
                             <RowDefinition Height="Auto"/>  <!-- Address bar -->
                             <RowDefinition Height="Auto"/>  <!-- Bookmarks/Shortcuts Bar -->
                             <RowDefinition Height="*"/>     <!-- Dynamic Tab Host Container -->
+                            <RowDefinition Height="Auto"/>  <!-- Predefined Prompts Bottom Bar -->
                         </Grid.RowDefinitions>
 
                         <!-- Row 0: Address Bar -->
@@ -736,33 +764,6 @@
                         <!-- Row 1: Bookmarks/Shortcuts Bar -->
                         <Border x:Name="BookmarksBar" Grid.Row="1" Background="#18181A" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1" Padding="8,4">
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <StackPanel.Resources>
-                                    <!-- Sleek pill bookmark style -->
-                                    <Style x:Key="BookmarkPill" TargetType="Button">
-                                        <Setter Property="Background" Value="#202022"/>
-                                        <Setter Property="Foreground" Value="#D0D0D2"/>
-                                        <Setter Property="Padding" Value="10,3"/>
-                                        <Setter Property="FontSize" Value="10.5"/>
-                                        <Setter Property="FontWeight" Value="SemiBold"/>
-                                        <Setter Property="Height" Value="22"/>
-                                        <Setter Property="Margin" Value="0,0,6,0"/>
-                                        <Setter Property="Template">
-                                            <Setter.Value>
-                                                <ControlTemplate TargetType="Button">
-                                                    <Border Background="{TemplateBinding Background}" CornerRadius="11" Padding="{TemplateBinding Padding}">
-                                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                                    </Border>
-                                                    <ControlTemplate.Triggers>
-                                                        <Trigger Property="IsMouseOver" Value="True">
-                                                            <Setter Property="Background" Value="#2D2D30"/>
-                                                            <Setter Property="Foreground" Value="{StaticResource TextMain}"/>
-                                                        </Trigger>
-                                                    </ControlTemplate.Triggers>
-                                                </ControlTemplate>
-                                            </Setter.Value>
-                                        </Setter>
-                                    </Style>
-                                </StackPanel.Resources>
                                 
                                 <TextBlock Text="Shortcuts:" Foreground="{StaticResource TextMuted}" FontSize="11" VerticalAlignment="Center" Margin="2,0,8,0"/>
                                 
@@ -782,6 +783,77 @@
 
                         <!-- Row 2: Dynamic Tab Host Container -->
                         <Grid Grid.Row="2" x:Name="BrowserTabsContainer"/>
+
+                        <!-- Row 3: Predefined Prompts Bottom Bar -->
+                        <Border Grid.Row="3" Background="#161618" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0" Padding="8,4">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/> <!-- Main Menu Dropdown Button -->
+                                    <ColumnDefinition Width="*"/>    <!-- Quick horizontal chips -->
+                                    <ColumnDefinition Width="Auto"/> <!-- Feedback Banner -->
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Prompts Menu Button with Dropdown -->
+                                <Button Grid.Column="0" x:Name="BrowserPromptsMenuBtn"
+                                        Click="BrowserPromptsMenuBtn_Click"
+                                        Style="{StaticResource BookmarkPill}"
+                                        Background="#8E2DE2" Foreground="#FFFFFF"
+                                        Height="26" Padding="9,3" Margin="0,0,8,0"
+                                        WindowChrome.IsHitTestVisibleInChrome="True"
+                                        ToolTip="Predefined Interview Prompts — Click to open menu">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock Text="⚡ Prompts" FontWeight="Bold" FontSize="11" Margin="0,0,5,0"/>
+                                        <Path Data="M0,0 L3.5,3.5 L7,0" Stroke="#FFFFFF" StrokeThickness="1.5" VerticalAlignment="Center" Margin="0,1,0,0"/>
+                                    </StackPanel>
+                                    <Button.ContextMenu>
+                                        <ContextMenu Background="#1E1E22" BorderBrush="#333338" BorderThickness="1">
+                                            <MenuItem Header="⚡ Prompt 1 — Fast &amp; Precise" Click="Prompt1_Click" Foreground="#FFFFFF" FontSize="12">
+                                                <MenuItem.Icon>
+                                                    <TextBlock Text="🎯" FontSize="12"/>
+                                                </MenuItem.Icon>
+                                            </MenuItem>
+                                            <MenuItem Header="🗣️ Prompt 2 — Human-Like Interview Answer" Click="Prompt2_Click" Foreground="#FFFFFF" FontSize="12">
+                                                <MenuItem.Icon>
+                                                    <TextBlock Text="💬" FontSize="12"/>
+                                                </MenuItem.Icon>
+                                            </MenuItem>
+                                            <MenuItem Header="💻 Prompt 3 — Technical Interview" Click="Prompt3_Click" Foreground="#FFFFFF" FontSize="12">
+                                                <MenuItem.Icon>
+                                                    <TextBlock Text="⚙️" FontSize="12"/>
+                                                </MenuItem.Icon>
+                                            </MenuItem>
+                                            <MenuItem Header="🚀 Prompt 4 — Ultra-Low-Latency Answering" Click="Prompt4_Click" Foreground="#FFFFFF" FontSize="12">
+                                                <MenuItem.Icon>
+                                                    <TextBlock Text="⚡" FontSize="12"/>
+                                                </MenuItem.Icon>
+                                            </MenuItem>
+                                            <MenuItem Header="🧠 Prompt 5 — Adaptive Interview Assistant" Click="Prompt5_Click" Foreground="#FFFFFF" FontSize="12">
+                                                <MenuItem.Icon>
+                                                    <TextBlock Text="🧩" FontSize="12"/>
+                                                </MenuItem.Icon>
+                                            </MenuItem>
+                                        </ContextMenu>
+                                    </Button.ContextMenu>
+                                </Button>
+
+                                <!-- Quick horizontal chips for 1-click paste -->
+                                <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Focusable="False">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Button Content="🎯 Fast &amp; Precise" Tag="1" Click="QuickPromptChip_Click" Style="{StaticResource BookmarkPill}" Height="24" WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="Prompt 1 — Fast &amp; Precise: Exact answer first, 20–60 words, technically accurate"/>
+                                        <Button Content="💬 Human-Like" Tag="2" Click="QuickPromptChip_Click" Style="{StaticResource BookmarkPill}" Height="24" WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="Prompt 2 — Human-Like: Conversational, 2–4 sentences, natural spoken English"/>
+                                        <Button Content="⚙️ Technical" Tag="3" Click="QuickPromptChip_Click" Style="{StaticResource BookmarkPill}" Height="24" WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="Prompt 3 — Technical Interview: Approach, solution, complexity, STAR structure"/>
+                                        <Button Content="⚡ Ultra-Fast" Tag="4" Click="QuickPromptChip_Click" Style="{StaticResource BookmarkPill}" Height="24" WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="Prompt 4 — Ultra-Low-Latency: 3–5 sentences, zero filler, lowest latency"/>
+                                        <Button Content="🧠 Adaptive" Tag="5" Click="QuickPromptChip_Click" Style="{StaticResource BookmarkPill}" Height="24" WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="Prompt 5 — Adaptive: Categorizes question and uses optimal format"/>
+                                    </StackPanel>
+                                </ScrollViewer>
+
+                                <!-- Feedback Pill -->
+                                <Border Grid.Column="2" x:Name="PromptPastedBanner" Background="#2000E676" BorderBrush="#00E676" BorderThickness="1"
+                                        CornerRadius="10" Padding="8,2" Margin="6,0,0,0" Visibility="Collapsed" VerticalAlignment="Center">
+                                    <TextBlock x:Name="PromptPastedText" Text="✓ Prompt Pasted!" Foreground="#00E676" FontSize="11" FontWeight="SemiBold"/>
+                                </Border>
+                            </Grid>
+                        </Border>
 
                         <!-- Popup for Site Info / Permissions -->
                         <Popup x:Name="SiteInfoPopup" StaysOpen="False" Placement="Bottom" PlacementTarget="{Binding ElementName=SiteInfoBtn}" AllowsTransparency="True" PopupAnimation="Fade">
