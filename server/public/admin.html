@@ -722,6 +722,12 @@
             </div>
 
             <div class="form-group">
+                <label>Direct Application Download URL</label>
+                <input type="text" id="settingDownloadUrl" placeholder="/downloads/Translucent-v2.4.0.zip or external direct link">
+                <small style="color: var(--text-muted); font-size: 11px; display: block; margin-top: 4px;">Default is internal zip (/downloads/Translucent-v2.4.0.zip). You can also put Google Drive, Dropbox, or S3 link.</small>
+            </div>
+
+            <div class="form-group">
                 <label>Payment / Checkout URL</label>
                 <input type="text" id="settingPaymentUrl" placeholder="https://buy.stripe.com/...">
             </div>
@@ -1007,6 +1013,7 @@
                 if (res.ok) {
                     const cfg = await res.json();
                     document.getElementById('settingGoogleClientId').value = cfg.googleClientId || '';
+                    document.getElementById('settingDownloadUrl').value = cfg.downloadUrl || '/downloads/Translucent-v2.4.0.zip';
                     document.getElementById('settingPaymentUrl').value = cfg.paymentUrl || '';
                     document.getElementById('settingSupportContact').value = cfg.supportContact || '';
                 }
@@ -1021,6 +1028,7 @@
 
         async function saveSettings() {
             const googleClientId = document.getElementById('settingGoogleClientId').value;
+            const downloadUrl = document.getElementById('settingDownloadUrl').value;
             const paymentUrl = document.getElementById('settingPaymentUrl').value;
             const supportContact = document.getElementById('settingSupportContact').value;
             const newPassword = document.getElementById('settingNewPassword').value;
@@ -1032,7 +1040,7 @@
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${adminToken}`
                     },
-                    body: JSON.stringify({ googleClientId, paymentUrl, supportContact, newPassword })
+                    body: JSON.stringify({ googleClientId, downloadUrl, paymentUrl, supportContact, newPassword })
                 });
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.error || 'Failed to update settings');

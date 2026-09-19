@@ -715,11 +715,11 @@
             </p>
 
             <div class="cta-group">
-                <a href="https://github.com/un-rohit/Translucent/releases" id="downloadPrimaryBtn" class="btn btn-primary btn-large">
+                <a href="/api/download" id="downloadPrimaryBtn" class="btn btn-primary btn-large direct-dl-link" download="Translucent-v2.4.0.zip">
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4h-13.051M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-13.051-1.95"/>
                     </svg>
-                    Download for Windows
+                    Direct Download for Windows
                 </a>
                 <a href="/login.html" class="btn btn-ghost btn-large">
                     <svg width="18" height="18" viewBox="0 0 24 24">
@@ -870,8 +870,8 @@
                     </h5>
                     <p>Version 2.4.0 • 64-bit (x64) • SHA-256 Verified Clean</p>
                 </div>
-                <a href="https://github.com/un-rohit/Translucent/releases" class="btn btn-primary btn-large">
-                    ⬇️ Download Setup (.exe)
+                <a href="/api/download" class="btn btn-primary btn-large direct-dl-link" download="Translucent-v2.4.0.zip">
+                    ⬇️ Direct Download (.zip)
                 </a>
             </div>
 
@@ -881,12 +881,12 @@
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="#A855F7">
                             <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
                         </svg>
-                        Modern MSIX Windows Package
+                        Standalone Portable Package
                     </h5>
-                    <p>Clean sandboxed installation with auto-updates support</p>
+                    <p>Pre-configured portable package with all dependencies included</p>
                 </div>
-                <a href="https://github.com/un-rohit/Translucent/releases" class="btn btn-ghost">
-                    Download .MSIX
+                <a href="/downloads/Translucent-v2.4.0.zip" class="btn btn-ghost direct-dl-link" download="Translucent-v2.4.0.zip">
+                    ⬇️ Download Portable
                 </a>
             </div>
 
@@ -917,13 +917,28 @@
                 © 2026 Translucent Technologies. All rights reserved.
             </div>
             <div class="footer-links">
+                <a href="/api/download" class="direct-dl-link" download="Translucent-v2.4.0.zip">Direct Download</a>
                 <a href="/login.html">Google Sign In</a>
                 <a href="/admin.html">Admin Licensing Portal</a>
-                <a href="https://github.com/un-rohit/Translucent" target="_blank" rel="noopener">GitHub Repository</a>
                 <a href="#features">Features</a>
             </div>
         </footer>
     </div>
 
+    <script>
+        window.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const res = await fetch('/api/public/config');
+                if (res.ok) {
+                    const cfg = await res.json();
+                    if (cfg.downloadUrl) {
+                        document.querySelectorAll('.direct-dl-link').forEach(el => {
+                            el.href = cfg.downloadUrl;
+                        });
+                    }
+                }
+            } catch (e) {}
+        });
+    </script>
 </body>
 </html>

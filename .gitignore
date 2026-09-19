@@ -38,3 +38,8 @@ packaging_tools/
 server/node_modules/
 server/data/
 server/.env
+
+# Zip Archives
+*.zip
+!server/public/downloads/*.zip
+publish_v2.4.0/

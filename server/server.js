@@ -56,6 +56,7 @@ initSetting('payment_url', 'https://buy.stripe.com/example_or_contact_admin');
 initSetting('support_contact', 'Telegram: @translucent_admin | Email: support@translucent.ai');
 initSetting('admin_password', ADMIN_PASSWORD);
 initSetting('google_client_id', DEFAULT_GOOGLE_CLIENT_ID);
+initSetting('download_url', '/downloads/Translucent-v2.4.0.zip');
 
 // Update google_client_id if empty
 const currentGoogleId = db.prepare("SELECT value FROM settings WHERE key = 'google_client_id'").get()?.value;
@@ -135,12 +136,20 @@ app.get('/api/public/config', (req, res) => {
     const paymentUrl = db.prepare("SELECT value FROM settings WHERE key = 'payment_url'").get()?.value || '';
     const supportContact = db.prepare("SELECT value FROM settings WHERE key = 'support_contact'").get()?.value || '';
     const googleClientId = db.prepare("SELECT value FROM settings WHERE key = 'google_client_id'").get()?.value || '';
+    const downloadUrl = db.prepare("SELECT value FROM settings WHERE key = 'download_url'").get()?.value || '/downloads/Translucent-v2.4.0.zip';
 
     res.json({
         paymentUrl,
         supportContact,
-        googleClientId
+        googleClientId,
+        downloadUrl
     });
+});
+
+// Direct Application Download Endpoint
+app.get('/api/download', (req, res) => {
+    const downloadUrl = db.prepare("SELECT value FROM settings WHERE key = 'download_url'").get()?.value || '/downloads/Translucent-v2.4.0.zip';
+    res.redirect(downloadUrl);
 });
 
 // Google Authentication Endpoint
@@ -332,7 +341,7 @@ app.delete('/api/admin/users/:id', verifyAdminToken, (req, res) => {
 
 // Admin Update Settings
 app.post('/api/admin/settings', verifyAdminToken, (req, res) => {
-    const { paymentUrl, supportContact, newPassword, googleClientId } = req.body;
+    const { paymentUrl, supportContact, newPassword, googleClientId, downloadUrl } = req.body;
 
     if (paymentUrl !== undefined) {
         db.prepare("UPDATE settings SET value = ? WHERE key = 'payment_url'").run(paymentUrl);
@@ -342,6 +351,9 @@ app.post('/api/admin/settings', verifyAdminToken, (req, res) => {
     }
     if (googleClientId !== undefined) {
         db.prepare("UPDATE settings SET value = ? WHERE key = 'google_client_id'").run(googleClientId.trim());
+    }
+    if (downloadUrl !== undefined) {
+        db.prepare("UPDATE settings SET value = ? WHERE key = 'download_url'").run(downloadUrl.trim());
     }
     if (newPassword && newPassword.trim().length >= 6) {
         db.prepare("UPDATE settings SET value = ? WHERE key = 'admin_password'").run(newPassword.trim());
