@@ -51,10 +51,17 @@ const initSetting = (key, defaultValue) => {
         db.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run(key, defaultValue);
     }
 };
+const DEFAULT_GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '845827182936-duqebq9k2l34ir3qqma7gp9jl8l2cg7l.apps.googleusercontent.com';
 initSetting('payment_url', 'https://buy.stripe.com/example_or_contact_admin');
 initSetting('support_contact', 'Telegram: @translucent_admin | Email: support@translucent.ai');
 initSetting('admin_password', ADMIN_PASSWORD);
-initSetting('google_client_id', process.env.GOOGLE_CLIENT_ID || '');
+initSetting('google_client_id', DEFAULT_GOOGLE_CLIENT_ID);
+
+// Update google_client_id if empty
+const currentGoogleId = db.prepare("SELECT value FROM settings WHERE key = 'google_client_id'").get()?.value;
+if (!currentGoogleId || currentGoogleId.trim() === '') {
+    db.prepare("UPDATE settings SET value = ? WHERE key = 'google_client_id'").run(DEFAULT_GOOGLE_CLIENT_ID);
+}
 
 // Middleware
 app.use(cors());
