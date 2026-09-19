@@ -39,6 +39,8 @@ namespace InvisibleChat
             var viewModel = new MainViewModel();
             DataContext = viewModel;
 
+            ApplyLayoutMode(false);
+
             viewModel.CurrentMessages.CollectionChanged += CurrentMessages_CollectionChanged;
             viewModel.PropertyChanged += ViewModel_PropertyChanged;
 
@@ -68,7 +70,28 @@ namespace InvisibleChat
         {
             var config = ConfigManager.Load();
 
-            // Restore tabs
+            // 1. Immediately apply saved layout mode so UI renders cleanly on first frame
+            if (config.IsSplitView && DataContext is MainViewModel vm)
+            {
+                vm.IsSplitView = true;
+                ApplyLayoutMode(true);
+            }
+            else if (!config.IsChatTabActive)
+            {
+                _isChatTabActive = false;
+                _chatWidth = Width;
+                _chatHeight = Height;
+                Width = _browserWidth;
+                Height = _browserHeight;
+                ApplyLayoutMode(false);
+            }
+            else
+            {
+                _isChatTabActive = true;
+                ApplyLayoutMode(false);
+            }
+
+            // 2. Restore tabs in background
             if (config.OpenTabsUrls != null && config.OpenTabsUrls.Count > 0)
             {
                 // Create all saved tabs
@@ -89,23 +112,6 @@ namespace InvisibleChat
             {
                 // Fallback: Start with one tab pointing to google.com if no saved session
                 await CreateNewTabAsync("https://www.google.com");
-            }
-
-            // Restore chat/browser/split active state
-            if (config.IsSplitView && DataContext is MainViewModel vm)
-            {
-                vm.IsSplitView = true;
-                ApplyLayoutMode(true);
-            }
-            else if (!config.IsChatTabActive)
-            {
-                // Trigger Browser tab activation
-                BrowserTabBtn_Click(this, new RoutedEventArgs());
-            }
-            else
-            {
-                // Default is Chat tab active
-                ChatTabBtn_Click(this, new RoutedEventArgs());
             }
         }
 
@@ -1003,6 +1009,9 @@ namespace InvisibleChat
                 SplitViewSplitter.Visibility = Visibility.Collapsed;
                 if (_isChatTabActive)
                 {
+                    BrowserColDef.Width = new GridLength(0);
+                    ChatColDef.Width = new GridLength(1.0, GridUnitType.Star);
+
                     Grid.SetColumn(ChatPanel, 0);
                     Grid.SetColumnSpan(ChatPanel, 3);
                     ChatPanel.Visibility = Visibility.Visible;
@@ -1017,6 +1026,9 @@ namespace InvisibleChat
                 }
                 else
                 {
+                    BrowserColDef.Width = new GridLength(1.0, GridUnitType.Star);
+                    ChatColDef.Width = new GridLength(0);
+
                     Grid.SetColumn(BrowserPanel, 0);
                     Grid.SetColumnSpan(BrowserPanel, 3);
                     BrowserPanel.Visibility = Visibility.Visible;
@@ -1057,12 +1069,14 @@ namespace InvisibleChat
 
         private void ChatTabBtn_Click(object sender, RoutedEventArgs e)
         {
+            bool wasSplit = false;
             if (DataContext is MainViewModel vm && vm.IsSplitView)
             {
                 vm.IsSplitView = false;
+                wasSplit = true;
             }
 
-            if (_isChatTabActive) return;
+            if (_isChatTabActive && !wasSplit) return;
             _isChatTabActive = true;
 
             _browserWidth  = Width;
@@ -1076,12 +1090,14 @@ namespace InvisibleChat
 
         private void BrowserTabBtn_Click(object sender, RoutedEventArgs e)
         {
+            bool wasSplit = false;
             if (DataContext is MainViewModel vm && vm.IsSplitView)
             {
                 vm.IsSplitView = false;
+                wasSplit = true;
             }
 
-            if (!_isChatTabActive) return;
+            if (!_isChatTabActive && !wasSplit) return;
             _isChatTabActive = false;
 
             _chatWidth  = Width;

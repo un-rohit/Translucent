@@ -460,13 +460,13 @@
                 <!-- Left Column: Chat and/or Browser Panels (Supports Single and Split View) -->
                 <Grid Grid.Column="0" x:Name="MainContentGrid">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition x:Name="BrowserColDef" Width="*"/>
+                        <ColumnDefinition x:Name="BrowserColDef" Width="0"/>
                         <ColumnDefinition x:Name="SplitterColDef" Width="Auto"/>
                         <ColumnDefinition x:Name="ChatColDef" Width="*"/>
                     </Grid.ColumnDefinitions>
 
                     <!-- ─── CHAT PANEL ─── -->
-                    <Grid x:Name="ChatPanel" Grid.Column="2">
+                    <Grid x:Name="ChatPanel" Grid.Column="0" Grid.ColumnSpan="3">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition x:Name="SidebarColumn" Width="Auto"/>
                             <ColumnDefinition Width="*"/>
@@ -639,7 +639,7 @@
                                   Background="{StaticResource BorderBrush}" Visibility="Collapsed" ResizeBehavior="PreviousAndNext"/>
 
                     <!-- ─── BROWSER PANEL ─── -->
-                    <Grid x:Name="BrowserPanel" Grid.Column="0" Visibility="Collapsed">
+                    <Grid x:Name="BrowserPanel" Grid.Column="0" Grid.ColumnSpan="3" Visibility="Collapsed">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>  <!-- Address bar -->
                             <RowDefinition Height="Auto"/>  <!-- Bookmarks/Shortcuts Bar -->
