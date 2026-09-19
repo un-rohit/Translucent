@@ -321,13 +321,16 @@ app.delete('/api/admin/users/:id', verifyAdminToken, (req, res) => {
 
 // Admin Update Settings
 app.post('/api/admin/settings', verifyAdminToken, (req, res) => {
-    const { paymentUrl, supportContact, newPassword } = req.body;
+    const { paymentUrl, supportContact, newPassword, googleClientId } = req.body;
 
     if (paymentUrl !== undefined) {
         db.prepare("UPDATE settings SET value = ? WHERE key = 'payment_url'").run(paymentUrl);
     }
     if (supportContact !== undefined) {
         db.prepare("UPDATE settings SET value = ? WHERE key = 'support_contact'").run(supportContact);
+    }
+    if (googleClientId !== undefined) {
+        db.prepare("UPDATE settings SET value = ? WHERE key = 'google_client_id'").run(googleClientId.trim());
     }
     if (newPassword && newPassword.trim().length >= 6) {
         db.prepare("UPDATE settings SET value = ? WHERE key = 'admin_password'").run(newPassword.trim());
