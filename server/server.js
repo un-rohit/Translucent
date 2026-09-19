@@ -14,7 +14,8 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 // ─────────────────────────────────────────────────────────────────
 // Database Setup (SQLite using native node:sqlite)
 // ─────────────────────────────────────────────────────────────────
-const dataDir = path.join(__dirname, 'data');
+const isVercel = process.env.VERCEL === '1' || process.env.NOW_REGION !== undefined;
+const dataDir = isVercel ? path.join('/tmp', 'data') : path.join(__dirname, 'data');
 if (!fs.existsSync(dataDir)) {
     fs.mkdirSync(dataDir, { recursive: true });
 }
@@ -353,12 +354,16 @@ app.use((err, req, res, next) => {
     }
 });
 
-// Start Server
-app.listen(PORT, () => {
-    console.log(`=================================================`);
-    console.log(`🚀 Translucent Auth & License Server Running`);
-    console.log(`📡 URL: http://localhost:${PORT}`);
-    console.log(`🔑 Admin Panel: http://localhost:${PORT}/admin.html`);
-    console.log(`🔐 Default Admin Password: ${ADMIN_PASSWORD}`);
-    console.log(`=================================================`);
-});
+// Start Server if run directly
+if (!isVercel || require.main === module) {
+    app.listen(PORT, () => {
+        console.log(`=================================================`);
+        console.log(`🚀 Translucent Auth & License Server Running`);
+        console.log(`📡 URL: http://localhost:${PORT}`);
+        console.log(`🔑 Admin Panel: http://localhost:${PORT}/admin.html`);
+        console.log(`🔐 Default Admin Password: ${ADMIN_PASSWORD}`);
+        console.log(`=================================================`);
+    });
+}
+
+module.exports = app;
