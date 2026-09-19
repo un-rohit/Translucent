@@ -23,6 +23,15 @@ namespace InvisibleChat
         // Co-pilot & Audio Settings
         public bool AutoCopilot { get; set; } = false;
         public bool AudioSourceMic { get; set; } = false; // false = Loopback/Speakers, true = Microphone
+
+        // Licensing & Authentication
+        public string AuthToken { get; set; } = string.Empty;
+        public string UserEmail { get; set; } = string.Empty;
+        public string UserName { get; set; } = string.Empty;
+        public string UserAvatarUrl { get; set; } = string.Empty;
+        public string AuthServerUrl { get; set; } = "http://localhost:3000";
+        public bool IsSubscribedCached { get; set; } = false;
+        public string SubscriptionStatus { get; set; } = "pending";
     }
 
     public static class ConfigManager

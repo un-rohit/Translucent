@@ -70,6 +70,15 @@ namespace InvisibleChat
         {
             var config = ConfigManager.Load();
 
+            // 0. Initialize Authentication & Subscription Gate
+            AuthManager.Instance.AuthStateChanged += () => Dispatcher.Invoke(UpdateSubscriptionGateUI);
+            UpdateSubscriptionGateUI();
+            _ = System.Threading.Tasks.Task.Run(async () =>
+            {
+                await AuthManager.Instance.InitializeAsync();
+                Dispatcher.Invoke(UpdateSubscriptionGateUI);
+            });
+
             // 1. Immediately apply saved layout mode so UI renders cleanly on first frame
             if (config.IsSplitView && DataContext is MainViewModel vm)
             {
@@ -488,6 +497,129 @@ namespace InvisibleChat
             {
                 System.Diagnostics.Debug.WriteLine($"Enter key simulation failed: {ex.Message}");
             }
+        }
+
+        // ─────────────────────────────────────────────────────────────────
+        // SUBSCRIPTION GATE & AUTHENTICATION
+        // ─────────────────────────────────────────────────────────────────
+        private void UpdateSubscriptionGateUI()
+        {
+            var auth = AuthManager.Instance;
+
+            if (auth.IsSubscribed)
+            {
+                // App is unlocked
+                SubscriptionGateOverlay.Visibility = Visibility.Collapsed;
+                ProAccountBtn.Visibility = Visibility.Visible;
+                MenuAccountEmail.Header = string.IsNullOrEmpty(auth.UserEmail) ? "Pro User" : auth.UserEmail;
+                MenuAccountPlan.Header = $"Plan: {auth.Plan.ToUpper()}";
+            }
+            else
+            {
+                // App is locked by Subscription Gate
+                SubscriptionGateOverlay.Visibility = Visibility.Visible;
+                ProAccountBtn.Visibility = Visibility.Collapsed;
+
+                if (!auth.IsAuthenticated)
+                {
+                    GateUnauthenticatedView.Visibility = Visibility.Visible;
+                    GateSubscriptionRequiredView.Visibility = Visibility.Collapsed;
+                    GateLoginStatusText.Visibility = Visibility.Collapsed;
+                }
+                else
+                {
+                    GateUnauthenticatedView.Visibility = Visibility.Collapsed;
+                    GateSubscriptionRequiredView.Visibility = Visibility.Visible;
+
+                    GateUserEmail.Text = auth.UserEmail;
+                    GateUserName.Text = string.IsNullOrEmpty(auth.UserName) ? "Google User" : auth.UserName;
+                    GateUserInitial.Text = !string.IsNullOrEmpty(auth.UserName) ? auth.UserName[0].ToString().ToUpper() : "U";
+
+                    if (auth.Status == "pending")
+                    {
+                        GateStatusText.Text = "Pending Approval";
+                        GateStatusPill.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x35, 0xF5, 0x9E, 0x0B));
+                        GateStatusPill.BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xF5, 0x9E, 0x0B));
+                        GateStatusText.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xFB, 0xBF, 0x24));
+                    }
+                    else if (auth.Status == "expired")
+                    {
+                        GateStatusText.Text = "License Expired";
+                        GateStatusPill.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x35, 0xEF, 0x44, 0x44));
+                        GateStatusPill.BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xEF, 0x44, 0x44));
+                        GateStatusText.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xF8, 0x71, 0x71));
+                    }
+                    else
+                    {
+                        GateStatusText.Text = "Subscription Inactive";
+                        GateStatusPill.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x35, 0xEF, 0x44, 0x44));
+                        GateStatusPill.BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xEF, 0x44, 0x44));
+                        GateStatusText.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xF8, 0x71, 0x71));
+                    }
+
+                    if (!string.IsNullOrEmpty(auth.SupportContact))
+                    {
+                        GateSupportText.Text = $"Need quick approval? {auth.SupportContact}";
+                    }
+                }
+            }
+        }
+
+        private async void GateGoogleLoginBtn_Click(object sender, RoutedEventArgs e)
+        {
+            GateLoginStatusText.Text = "⏳ Opening browser for Google Sign-In...";
+            GateLoginStatusText.Visibility = Visibility.Visible;
+            await AuthManager.Instance.StartGoogleSignInAsync();
+        }
+
+        private void GatePurchaseBtn_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                string url = AuthManager.Instance.PaymentUrl;
+                if (!string.IsNullOrEmpty(url))
+                {
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = url,
+                        UseShellExecute = true
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to open purchase URL: {ex.Message}");
+            }
+        }
+
+        private async void GateCheckStatusBtn_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is System.Windows.Controls.Button btn)
+            {
+                btn.IsEnabled = false;
+                await AuthManager.Instance.CheckSubscriptionStatusAsync();
+                btn.IsEnabled = true;
+            }
+        }
+
+        private void GateSignOutBtn_Click(object sender, RoutedEventArgs e)
+        {
+            AuthManager.Instance.SignOut();
+        }
+
+        private void ProAccountBtn_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is System.Windows.Controls.Button btn && btn.ContextMenu != null)
+            {
+                btn.ContextMenu.PlacementTarget = btn;
+                btn.ContextMenu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
+                btn.ContextMenu.IsOpen = true;
+            }
+        }
+
+        private async void CheckStatus_Click(object sender, RoutedEventArgs e)
+        {
+            await AuthManager.Instance.CheckSubscriptionStatusAsync();
         }
 
         // ─────────────────────────────────────────────────────────────────
@@ -1134,6 +1266,15 @@ namespace InvisibleChat
 
         private void OnRequestSnipScreen()
         {
+            if (!AuthManager.Instance.IsSubscribed)
+            {
+                UpdateSubscriptionGateUI();
+                Show();
+                if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
+                Activate();
+                return;
+            }
+
             try
             {
                 var snipWin = new SnipWindow();

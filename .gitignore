@@ -33,3 +33,8 @@ run_output.txt
 *.pfx
 package_staging/
 packaging_tools/
+
+# Server
+server/node_modules/
+server/data/
+server/.env

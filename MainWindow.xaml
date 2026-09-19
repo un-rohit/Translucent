@@ -431,6 +431,26 @@
                                   Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
                                   Width="12" Height="12" Stretch="Uniform"/>
                         </Button>
+
+                        <!-- Pro Account Status & Menu -->
+                        <Button x:Name="ProAccountBtn" Style="{StaticResource IconButton}"
+                                Click="ProAccountBtn_Click" Height="26" Margin="2,2,4,2" Padding="6,2"
+                                WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="Account &amp; License Status">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Border Width="6" Height="6" CornerRadius="3" Background="#00E676" Margin="0,0,5,0"/>
+                                <TextBlock Text="PRO" FontWeight="Bold" FontSize="10" Foreground="#00E676"/>
+                            </StackPanel>
+                            <Button.ContextMenu>
+                                <ContextMenu Background="#1E1E22" BorderBrush="#333338" BorderThickness="1">
+                                    <MenuItem x:Name="MenuAccountEmail" Header="user@gmail.com" IsEnabled="False" Foreground="#94A3B8" FontSize="11.5"/>
+                                    <MenuItem x:Name="MenuAccountPlan" Header="Plan: Translucent Pro" IsEnabled="False" Foreground="#FFFFFF" FontSize="11.5"/>
+                                    <Separator Background="#333338"/>
+                                    <MenuItem Header="🔄 Refresh License Status" Click="CheckStatus_Click" Foreground="#FFFFFF" FontSize="12"/>
+                                    <MenuItem Header="🚪 Sign Out" Click="GateSignOutBtn_Click" Foreground="#F87171" FontSize="12"/>
+                                </ContextMenu>
+                            </Button.ContextMenu>
+                        </Button>
+
                         <Button x:Name="MinimizeBtn" Style="{StaticResource IconButton}"
                                 Click="MinimizeBtn_Click" Width="30" Height="30"
                                 WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="Minimize to Tray">
@@ -1197,6 +1217,171 @@
                     </Grid>
                 </Border>
             </Grid>
+
+            <!-- ═══════════════════════════════════════════════════════════════════ -->
+            <!-- SUBSCRIPTION & AUTHENTICATION LOCK GATE (BLOCKS ENTIRE APPLICATION) -->
+            <!-- ═══════════════════════════════════════════════════════════════════ -->
+            <Border x:Name="SubscriptionGateOverlay"
+                    Grid.Row="0" Grid.RowSpan="2"
+                    Background="#FA0B0B0E"
+                    Panel.ZIndex="10000"
+                    Visibility="Collapsed">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="40"/> <!-- Header drag / close bar -->
+                        <RowDefinition Height="*"/>  <!-- Centered Lock Card -->
+                    </Grid.RowDefinitions>
+
+                    <!-- Top Draggable Header Bar -->
+                    <Border Grid.Row="0" Background="#141418" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1" Padding="14,0">
+                        <Grid>
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Border Width="22" Height="22" Background="#8E2DE2" CornerRadius="6" Margin="0,0,10,0">
+                                    <TextBlock Text="⚡" FontSize="12" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <TextBlock Text="Translucent Pro — Security &amp; Subscription Gate" FontWeight="SemiBold" FontSize="12.5" Foreground="#FFFFFF" VerticalAlignment="Center"/>
+                            </StackPanel>
+
+                            <!-- Window controls so user can minimize or exit -->
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                <Button Style="{StaticResource IconButton}" Click="MinimizeBtn_Click" Width="30" Height="30" WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="Minimize">
+                                    <Path Data="M0,6 L10,6" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.5" Width="10" Height="10" Stretch="Uniform"/>
+                                </Button>
+                                <Button Style="{StaticResource CloseButton}" Click="CloseBtn_Click" Width="30" Height="30" WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="Exit">
+                                    <Path Data="M0,0 L10,10 M0,10 L10,0" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.5" Width="10" Height="10" Stretch="Uniform"/>
+                                </Button>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- Centered Card Container -->
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <Grid VerticalAlignment="Center" HorizontalAlignment="Center" Margin="20">
+                            <!-- Background Ambient Glow -->
+                            <Border Width="380" Height="380" Background="#208E2DE2" CornerRadius="190" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <Border.Effect>
+                                    <BlurEffect Radius="90"/>
+                                </Border.Effect>
+                            </Border>
+
+                            <!-- Main Glassmorphic Lock Card -->
+                            <Border Background="#16161C" BorderBrush="#353545" BorderThickness="1.2"
+                                    CornerRadius="20" Padding="36,32" Width="440"
+                                    WindowChrome.IsHitTestVisibleInChrome="True">
+                                <StackPanel>
+                                    <!-- Glowing Logo Badge -->
+                                    <Border Width="64" Height="64" CornerRadius="18" Background="#8E2DE2" HorizontalAlignment="Center" Margin="0,0,0,16">
+                                        <Border.Effect>
+                                            <DropShadowEffect Color="#8E2DE2" BlurRadius="24" ShadowDepth="0" Opacity="0.6"/>
+                                        </Border.Effect>
+                                        <TextBlock Text="⚡" FontSize="32" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+
+                                    <TextBlock Text="TRANSLUCENT PRO" FontWeight="ExtraBold" FontSize="22" Foreground="#FFFFFF" HorizontalAlignment="Center" Margin="0,0,0,4"/>
+                                    <TextBlock Text="Stealth AI Companion &amp; Multimodal Assistant" FontSize="12.5" Foreground="#94A3B8" HorizontalAlignment="Center" Margin="0,0,0,22"/>
+
+                                    <!-- ── STATE 1: UNAUTHENTICATED (GOOGLE LOGIN) ── -->
+                                    <StackPanel x:Name="GateUnauthenticatedView" Visibility="Visible">
+                                        <Border Background="#0F0F14" BorderBrush="#252530" BorderThickness="1" CornerRadius="12" Padding="16,14" Margin="0,0,0,22">
+                                            <StackPanel>
+                                                <TextBlock Text="Pro Features Included:" FontWeight="SemiBold" FontSize="12" Foreground="#E2E8F0" Margin="0,0,0,8"/>
+                                                <TextBlock Text="• Zero-Capture Anti-Detection Technology" FontSize="11.5" Foreground="#94A3B8" Margin="0,2"/>
+                                                <TextBlock Text="• Stealth Screen Snip &amp; Multimodal Vision Solver" FontSize="11.5" Foreground="#94A3B8" Margin="0,2"/>
+                                                <TextBlock Text="• Real-time Live Captions &amp; Interview Co-pilot" FontSize="11.5" Foreground="#94A3B8" Margin="0,2"/>
+                                                <TextBlock Text="• Integrated Multi-Tab Stealth Chromium Browser" FontSize="11.5" Foreground="#94A3B8" Margin="0,2"/>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- Sign in with Google Button -->
+                                        <Button x:Name="GateGoogleLoginBtn" Click="GateGoogleLoginBtn_Click"
+                                                Background="#FFFFFF" Foreground="#1F2937"
+                                                Height="46" Cursor="Hand" BorderThickness="0"
+                                                WindowChrome.IsHitTestVisibleInChrome="True">
+                                            <Button.Resources>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="CornerRadius" Value="12"/>
+                                                </Style>
+                                            </Button.Resources>
+                                            <Button.Effect>
+                                                <DropShadowEffect Color="#000000" BlurRadius="12" ShadowDepth="2" Opacity="0.3"/>
+                                            </Button.Effect>
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <Path Width="18" Height="18" Margin="0,0,10,0" Stretch="Uniform"
+                                                      Data="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" Fill="#4285F4"/>
+                                                <TextBlock Text="Sign in with Google" FontWeight="Bold" FontSize="14" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Button>
+
+                                        <TextBlock x:Name="GateLoginStatusText" Text="" Foreground="#00E676" FontSize="11.5" HorizontalAlignment="Center" Margin="0,12,0,0" Visibility="Collapsed"/>
+                                    </StackPanel>
+
+                                    <!-- ── STATE 2: SUBSCRIPTION REQUIRED / AWAITING APPROVAL ── -->
+                                    <StackPanel x:Name="GateSubscriptionRequiredView" Visibility="Collapsed">
+                                        <!-- User Identity Pill -->
+                                        <Border Background="#0F0F14" BorderBrush="#252530" BorderThickness="1" CornerRadius="12" Padding="12,10" Margin="0,0,0,18">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <Border Grid.Column="0" Width="36" Height="36" CornerRadius="18" Background="#8E2DE2" Margin="0,0,10,0">
+                                                    <TextBlock x:Name="GateUserInitial" Text="U" FontWeight="Bold" FontSize="15" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Border>
+                                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                    <TextBlock x:Name="GateUserName" Text="Google User" FontWeight="SemiBold" FontSize="13" Foreground="White"/>
+                                                    <TextBlock x:Name="GateUserEmail" Text="user@gmail.com" FontSize="11.5" Foreground="#94A3B8"/>
+                                                </StackPanel>
+                                                <Border Grid.Column="2" x:Name="GateStatusPill" Background="#35F59E0B" BorderBrush="#F59E0B" BorderThickness="1" CornerRadius="10" Padding="8,3" VerticalAlignment="Center">
+                                                    <TextBlock x:Name="GateStatusText" Text="Pending Approval" FontSize="10.5" FontWeight="SemiBold" Foreground="#FBBF24"/>
+                                                </Border>
+                                            </Grid>
+                                        </Border>
+
+                                        <TextBlock Text="Access Restricted" FontWeight="Bold" FontSize="15" Foreground="#FFFFFF" HorizontalAlignment="Center" Margin="0,0,0,6"/>
+                                        <TextBlock Text="Your account requires an active subscription or administrator approval to unlock full access."
+                                                   TextWrapping="Wrap" TextAlignment="Center" FontSize="12" Foreground="#94A3B8" Margin="0,0,0,20" LineHeight="17"/>
+
+                                        <!-- Action: Purchase Subscription -->
+                                        <Button x:Name="GatePurchaseBtn" Click="GatePurchaseBtn_Click"
+                                                Style="{StaticResource ModernButton}" Height="40" Margin="0,0,0,10"
+                                                WindowChrome.IsHitTestVisibleInChrome="True">
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <TextBlock Text="💳 Purchase License / Subscription" FontWeight="Bold" FontSize="13"/>
+                                            </StackPanel>
+                                        </Button>
+
+                                        <!-- Action: Refresh Status -->
+                                        <Button x:Name="GateCheckStatusBtn" Click="GateCheckStatusBtn_Click"
+                                                Background="#22222A" Foreground="#E2E8F0" Height="36" BorderBrush="#333340" BorderThickness="1"
+                                                Cursor="Hand" Margin="0,0,0,14" WindowChrome.IsHitTestVisibleInChrome="True">
+                                            <Button.Resources>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="CornerRadius" Value="8"/>
+                                                </Style>
+                                            </Button.Resources>
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <TextBlock Text="🔄 Check Status / Refresh" FontWeight="SemiBold" FontSize="12.5"/>
+                                            </StackPanel>
+                                        </Button>
+
+                                        <!-- Support Contact info -->
+                                        <TextBlock x:Name="GateSupportText" Text="Need quick approval? Contact: support@translucent.ai"
+                                                   FontSize="11" Foreground="#64748B" HorizontalAlignment="Center" Margin="0,0,0,16"/>
+
+                                        <!-- Sign Out -->
+                                        <Button Click="GateSignOutBtn_Click" Background="Transparent" BorderThickness="0" Foreground="#F87171"
+                                                Cursor="Hand" FontSize="12" FontWeight="SemiBold" HorizontalAlignment="Center"
+                                                WindowChrome.IsHitTestVisibleInChrome="True">
+                                            <TextBlock Text="Sign Out / Switch Account"/>
+                                        </Button>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
         </Grid>
     </Border>
 </Window>
