@@ -716,6 +716,12 @@
             <h3>Portal Settings</h3>
             
             <div class="form-group">
+                <label>Google OAuth Client ID</label>
+                <input type="text" id="settingGoogleClientId" placeholder="e.g. 123456789-xyz.apps.googleusercontent.com">
+                <small style="color: var(--text-muted); font-size: 11px; display: block; margin-top: 4px;">From Google Cloud Console &gt; Credentials &gt; OAuth 2.0 Client ID</small>
+            </div>
+
+            <div class="form-group">
                 <label>Payment / Checkout URL</label>
                 <input type="text" id="settingPaymentUrl" placeholder="https://buy.stripe.com/...">
             </div>
@@ -1000,6 +1006,7 @@
                 const res = await fetch('/api/public/config');
                 if (res.ok) {
                     const cfg = await res.json();
+                    document.getElementById('settingGoogleClientId').value = cfg.googleClientId || '';
                     document.getElementById('settingPaymentUrl').value = cfg.paymentUrl || '';
                     document.getElementById('settingSupportContact').value = cfg.supportContact || '';
                 }
@@ -1013,6 +1020,7 @@
         }
 
         async function saveSettings() {
+            const googleClientId = document.getElementById('settingGoogleClientId').value;
             const paymentUrl = document.getElementById('settingPaymentUrl').value;
             const supportContact = document.getElementById('settingSupportContact').value;
             const newPassword = document.getElementById('settingNewPassword').value;
@@ -1024,7 +1032,7 @@
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${adminToken}`
                     },
-                    body: JSON.stringify({ paymentUrl, supportContact, newPassword })
+                    body: JSON.stringify({ googleClientId, paymentUrl, supportContact, newPassword })
                 });
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.error || 'Failed to update settings');

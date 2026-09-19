@@ -7,6 +7,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Google Identity Services -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <style>
         :root {
             --bg-base: #0B0B0E;
@@ -228,8 +230,13 @@
             <h2>Sign in to Translucent</h2>
             <p class="subtitle">Connect your Google account to unlock your Translucent Pro software license.</p>
 
-            <!-- 1-Click Fast Google Sign-In -->
-            <button class="google-btn" onclick="signInWithGooglePrompt()">
+            <!-- Official Google Identity Services Button Container -->
+            <div id="gsiButtonWrapper" style="display: none; justify-content: center; margin-bottom: 12px;">
+                <div id="gsiButton"></div>
+            </div>
+
+            <!-- Fallback 1-Click Fast Google Sign-In -->
+            <button id="customGoogleBtn" class="google-btn" onclick="signInWithGooglePrompt()">
                 <svg viewBox="0 0 24 24">
                     <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                     <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -269,6 +276,60 @@
         const urlParams = new URLSearchParams(window.location.search);
         const desktopPort = urlParams.get('port') || '58291';
 
+        function decodeJwtResponse(token) {
+            try {
+                const base64Url = token.split('.')[1];
+                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+                    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                }).join(''));
+                return JSON.parse(jsonPayload);
+            } catch (e) {
+                return null;
+            }
+        }
+
+        async function handleCredentialResponse(response) {
+            const payload = decodeJwtResponse(response.credential);
+            if (!payload || !payload.email) {
+                alert('Could not parse Google credential');
+                return;
+            }
+            await authenticateAndRedirect({
+                email: payload.email,
+                name: payload.name || payload.email.split('@')[0],
+                avatarUrl: payload.picture || '',
+                googleId: payload.sub
+            });
+        }
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const res = await fetch('/api/public/config');
+                const cfg = await res.json();
+                if (cfg.googleClientId && cfg.googleClientId.trim() !== '') {
+                    const checkGsi = setInterval(() => {
+                        if (window.google && google.accounts && google.accounts.id) {
+                            clearInterval(checkGsi);
+                            google.accounts.id.initialize({
+                                client_id: cfg.googleClientId.trim(),
+                                callback: handleCredentialResponse
+                            });
+                            google.accounts.id.renderButton(
+                                document.getElementById("gsiButton"),
+                                { theme: "filled_blue", size: "large", width: 360, shape: "rectangular", text: "continue_with" }
+                            );
+                            document.getElementById("gsiButtonWrapper").style.display = "flex";
+                            document.getElementById("customGoogleBtn").style.display = "none";
+                        }
+                    }, 100);
+                    setTimeout(() => clearInterval(checkGsi), 4000);
+                }
+            } catch (e) {
+                console.warn('Config load error:', e);
+            }
+        });
+
         async function signInWithGooglePrompt() {
             const email = prompt('Enter your Google Account email to authenticate:', 'user@gmail.com');
             if (!email) return;
@@ -283,13 +344,13 @@
             await authenticateAndRedirect({ email, name });
         }
 
-        async function authenticateAndRedirect({ email, name }) {
+        async function authenticateAndRedirect({ email, name, avatarUrl = '', googleId = '' }) {
             try {
                 // 1. Authenticate with backend
                 const res = await fetch('/api/auth/google', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, name })
+                    body: JSON.stringify({ email, name, avatarUrl, googleId })
                 });
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.error || 'Authentication failed');
