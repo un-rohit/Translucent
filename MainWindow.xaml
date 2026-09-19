@@ -658,6 +658,7 @@
                                     <ColumnDefinition Width="Auto"/> <!-- Home -->
                                     <ColumnDefinition Width="Auto"/> <!-- Lock/Info -->
                                     <ColumnDefinition Width="*"/>    <!-- URL Bar -->
+                                    <ColumnDefinition Width="Auto"/> <!-- Snip + Prompt -->
                                     <ColumnDefinition Width="Auto"/> <!-- Screenshot -->
                                     <ColumnDefinition Width="Auto"/> <!-- Paste -->
                                     <ColumnDefinition Width="Auto"/> <!-- Enter -->
@@ -721,17 +722,43 @@
                                          KeyDown="BrowserUrlBar_KeyDown"
                                          WindowChrome.IsHitTestVisibleInChrome="True"/>
 
+                                <!-- Snip Screenshot + Paste with Prompt Button -->
+                                <Button Grid.Column="6" x:Name="BrowserSnipPromptBtn"
+                                        Style="{StaticResource IconButton}" Width="30" Height="30"
+                                        Click="BrowserSnipPromptBtn_Click" Margin="2,0"
+                                        WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="Snip Screenshot &amp; Paste with Prompt to Tab">
+                                    <Grid Width="15" Height="15">
+                                        <Path Data="M3 4h2.5l1.5-1.5h4l1.5 1.5H15c.8 0 1.5.7 1.5 1.5v8c0 .8-.7 1.5-1.5 1.5H3c-.8 0-1.5-.7-1.5-1.5V5.5C1.5 4.7 2.2 4 3 4z" 
+                                              Stroke="#A855F7" StrokeThickness="1.3" Fill="Transparent" Stretch="Uniform"/>
+                                        <TextBlock Text="⚡" FontSize="8" Foreground="#A855F7" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,1,0,0"/>
+                                    </Grid>
+                                </Button>
+
                                 <!-- Screenshot Button -->
-                                <Button Grid.Column="6" x:Name="BrowserScreenshotBtn"
+                                <Button Grid.Column="7" x:Name="BrowserScreenshotBtn"
                                         Style="{StaticResource IconButton}" Width="30" Height="30"
                                         Click="BrowserScreenshotBtn_Click" Margin="2,0"
-                                        WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="Take Screenshot (Copies to clipboard)">
+                                        WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="Take Screenshot (Copies to clipboard) — Right-click for options">
                                     <Path Data="M4 4h3l2-2h6l2 2h3c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2zm8 3c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zm0 8c-1.65 0-3-1.35-3-3s1.35-3 3-3 3 1.35 3 3-1.35 3-3 3zm6-5h-1c-.55 0-1-.45-1-1s.45-1 1-1h1c.55 0 1 .45 1 1s-.45 1-1 1z" 
                                           Fill="#8A8A8C" Width="14" Height="14" Stretch="Uniform"/>
+                                    <Button.ContextMenu>
+                                        <ContextMenu Background="#1E1E22" BorderBrush="#333338" BorderThickness="1">
+                                            <MenuItem Header="📷 Snip + Paste Prompt to Current Tab" Click="SnipAndPrompt_Click" Foreground="#00E676" FontSize="12">
+                                                <MenuItem.Icon><TextBlock Text="📷" FontSize="12"/></MenuItem.Icon>
+                                            </MenuItem>
+                                            <MenuItem Header="🖥️ Full Screenshot + Paste Prompt to Current Tab" Click="FullScreenshotAndPrompt_Click" Foreground="#FFFFFF" FontSize="12">
+                                                <MenuItem.Icon><TextBlock Text="🖥️" FontSize="12"/></MenuItem.Icon>
+                                            </MenuItem>
+                                            <Separator Background="#333338"/>
+                                            <MenuItem Header="📋 Full Screenshot to Clipboard Only" Click="BrowserScreenshotBtn_Click" Foreground="#AAAAAA" FontSize="12">
+                                                <MenuItem.Icon><TextBlock Text="📋" FontSize="12"/></MenuItem.Icon>
+                                            </MenuItem>
+                                        </ContextMenu>
+                                    </Button.ContextMenu>
                                 </Button>
 
                                 <!-- Paste Button -->
-                                <Button Grid.Column="7" x:Name="BrowserPasteBtn"
+                                <Button Grid.Column="8" x:Name="BrowserPasteBtn"
                                         Style="{StaticResource IconButton}" Width="30" Height="30"
                                         Click="BrowserPasteBtn_Click" Margin="2,0"
                                         WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="Paste Clipboard to Webpage (Ctrl+V)">
@@ -740,7 +767,7 @@
                                 </Button>
 
                                 <!-- Enter Button -->
-                                <Button Grid.Column="8" x:Name="BrowserEnterBtn"
+                                <Button Grid.Column="9" x:Name="BrowserEnterBtn"
                                         Style="{StaticResource IconButton}" Width="30" Height="30"
                                         Click="BrowserEnterBtn_Click" Margin="2,0"
                                         WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="Simulate Enter Key (Submit/Send)">
@@ -749,7 +776,7 @@
                                 </Button>
 
                                 <!-- Go Button -->
-                                <Button Grid.Column="9" x:Name="BrowserGoBtn"
+                                <Button Grid.Column="10" x:Name="BrowserGoBtn"
                                         Style="{StaticResource ModernButton}"
                                         Width="34" Height="30" Margin="5,0,0,0" Padding="0"
                                         Click="BrowserGoBtn_Click"
@@ -773,8 +800,8 @@
                                 <!-- ChatGPT -->
                                 <Button Content="ChatGPT" Click="ShortcutBtn_Click" Tag="https://chatgpt.com" Style="{StaticResource BookmarkPill}" WindowChrome.IsHitTestVisibleInChrome="True"/>
                                 
-                                <!-- Gemini -->
-                                <Button Content="Gemini" Click="ShortcutBtn_Click" Tag="https://gemini.google.com" Style="{StaticResource BookmarkPill}" WindowChrome.IsHitTestVisibleInChrome="True"/>
+                                <!-- Perplexity -->
+                                <Button Content="Perplexity" Click="ShortcutBtn_Click" Tag="https://www.perplexity.ai" Style="{StaticResource BookmarkPill}" WindowChrome.IsHitTestVisibleInChrome="True"/>
                                 
                                 <!-- Claude -->
                                 <Button Content="Claude" Click="ShortcutBtn_Click" Tag="https://claude.ai" Style="{StaticResource BookmarkPill}" WindowChrome.IsHitTestVisibleInChrome="True"/>
@@ -807,6 +834,22 @@
                                     </StackPanel>
                                     <Button.ContextMenu>
                                         <ContextMenu Background="#1E1E22" BorderBrush="#333338" BorderThickness="1">
+                                            <MenuItem Header="📷 Snip Screenshot + Prompt to Tab" Click="SnipAndPrompt_Click" Foreground="#00E676" FontWeight="SemiBold" FontSize="12">
+                                                <MenuItem.Icon>
+                                                    <TextBlock Text="📷" FontSize="12"/>
+                                                </MenuItem.Icon>
+                                            </MenuItem>
+                                            <MenuItem Header="🖥️ Full Screenshot + Prompt to Tab" Click="FullScreenshotAndPrompt_Click" Foreground="#FFFFFF" FontSize="12">
+                                                <MenuItem.Icon>
+                                                    <TextBlock Text="🖥️" FontSize="12"/>
+                                                </MenuItem.Icon>
+                                            </MenuItem>
+                                            <Separator Background="#333338"/>
+                                            <MenuItem Header="🔍 Prompt 6 — Analyze Screenshot" Click="Prompt6_Click" Foreground="#FFFFFF" FontSize="12">
+                                                <MenuItem.Icon>
+                                                    <TextBlock Text="🔍" FontSize="12"/>
+                                                </MenuItem.Icon>
+                                            </MenuItem>
                                             <MenuItem Header="⚡ Prompt 1 — Fast &amp; Precise" Click="Prompt1_Click" Foreground="#FFFFFF" FontSize="12">
                                                 <MenuItem.Icon>
                                                     <TextBlock Text="🎯" FontSize="12"/>
@@ -839,6 +882,8 @@
                                 <!-- Quick horizontal chips for 1-click paste -->
                                 <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Focusable="False">
                                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Button Content="📷 Snip + Prompt" Tag="snip_prompt" Click="QuickPromptChip_Click" Style="{StaticResource BookmarkPill}" Background="#2B1A4A" Foreground="#D199FF" BorderBrush="#8E2DE2" Height="24" WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="Snip screen region -> Paste image to current tab -> Paste prompt automatically"/>
+                                        <Button Content="🔍 Analyze Screenshot" Tag="6" Click="QuickPromptChip_Click" Style="{StaticResource BookmarkPill}" Height="24" WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="Prompt 6: Please analyze this screenshot and provide a direct, concise solution / explanation."/>
                                         <Button Content="🎯 Fast &amp; Precise" Tag="1" Click="QuickPromptChip_Click" Style="{StaticResource BookmarkPill}" Height="24" WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="Prompt 1 — Fast &amp; Precise: Exact answer first, 20–60 words, technically accurate"/>
                                         <Button Content="💬 Human-Like" Tag="2" Click="QuickPromptChip_Click" Style="{StaticResource BookmarkPill}" Height="24" WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="Prompt 2 — Human-Like: Conversational, 2–4 sentences, natural spoken English"/>
                                         <Button Content="⚙️ Technical" Tag="3" Click="QuickPromptChip_Click" Style="{StaticResource BookmarkPill}" Height="24" WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="Prompt 3 — Technical Interview: Approach, solution, complexity, STAR structure"/>

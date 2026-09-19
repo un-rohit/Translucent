@@ -123,5 +123,8 @@ Follow-up question:
 Use the previous context and answer only the new question.
 
 Always be concise, accurate, natural, and interview-ready.";
+
+        public const string PromptAnalyzeScreenshot = "Please analyze this screenshot and provide a direct, concise solution / explanation.";
+        public const string Prompt6 = PromptAnalyzeScreenshot;
     }
 }

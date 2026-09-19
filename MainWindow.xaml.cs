@@ -509,6 +509,12 @@ namespace InvisibleChat
             {
                 switch (tag)
                 {
+                    case "snip_prompt":
+                        await SnipAndPasteToCurrentTabAsync();
+                        break;
+                    case "full_screenshot_prompt":
+                        await FullScreenshotAndPasteToCurrentTabAsync();
+                        break;
                     case "1":
                         await PastePromptIntoActiveTabAsync(PredefinedPrompts.Prompt1, "Fast & Precise");
                         break;
@@ -524,9 +530,22 @@ namespace InvisibleChat
                     case "5":
                         await PastePromptIntoActiveTabAsync(PredefinedPrompts.Prompt5, "Adaptive Assistant");
                         break;
+                    case "6":
+                    case "analyze_screenshot":
+                        await PastePromptIntoActiveTabAsync(PredefinedPrompts.PromptAnalyzeScreenshot, "Analyze Screenshot");
+                        break;
                 }
             }
         }
+
+        private async void BrowserSnipPromptBtn_Click(object sender, RoutedEventArgs e) =>
+            await SnipAndPasteToCurrentTabAsync();
+
+        private async void SnipAndPrompt_Click(object sender, RoutedEventArgs e) =>
+            await SnipAndPasteToCurrentTabAsync();
+
+        private async void FullScreenshotAndPrompt_Click(object sender, RoutedEventArgs e) =>
+            await FullScreenshotAndPasteToCurrentTabAsync();
 
         private async void Prompt1_Click(object sender, RoutedEventArgs e) =>
             await PastePromptIntoActiveTabAsync(PredefinedPrompts.Prompt1, "Fast & Precise");
@@ -542,6 +561,198 @@ namespace InvisibleChat
 
         private async void Prompt5_Click(object sender, RoutedEventArgs e) =>
             await PastePromptIntoActiveTabAsync(PredefinedPrompts.Prompt5, "Adaptive Assistant");
+
+        private async void Prompt6_Click(object sender, RoutedEventArgs e) =>
+            await PastePromptIntoActiveTabAsync(PredefinedPrompts.PromptAnalyzeScreenshot, "Analyze Screenshot");
+
+        private async System.Threading.Tasks.Task SnipAndPasteToCurrentTabAsync()
+        {
+            if (_activeTab == null || !_webViews.TryGetValue(_activeTab, out var webView))
+            {
+                ShowPromptPastedFeedback("No active tab open");
+                return;
+            }
+
+            try
+            {
+                var snipWin = new SnipWindow();
+                var helper = new System.Windows.Interop.WindowInteropHelper(this);
+                if (helper.Handle != IntPtr.Zero)
+                {
+                    snipWin.Owner = this;
+                }
+
+                if (snipWin.ShowDialog() == true && snipWin.SelectedWidth > 10 && snipWin.SelectedHeight > 10)
+                {
+                    using var bmp = new System.Drawing.Bitmap(
+                        snipWin.SelectedWidth,
+                        snipWin.SelectedHeight,
+                        System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+
+                    using (var g = System.Drawing.Graphics.FromImage(bmp))
+                    {
+                        g.CopyFromScreen(
+                            snipWin.SelectedX,
+                            snipWin.SelectedY,
+                            0, 0,
+                            new System.Drawing.Size(snipWin.SelectedWidth, snipWin.SelectedHeight),
+                            System.Drawing.CopyPixelOperation.SourceCopy);
+                    }
+
+                    var hBitmap = bmp.GetHbitmap();
+                    try
+                    {
+                        var bitmapSource = System.Windows.Interop.Imaging.CreateBitmapSourceFromHBitmap(
+                            hBitmap,
+                            IntPtr.Zero,
+                            System.Windows.Int32Rect.Empty,
+                            System.Windows.Media.Imaging.BitmapSizeOptions.FromEmptyOptions());
+
+                        System.Windows.Clipboard.SetImage(bitmapSource);
+                    }
+                    finally
+                    {
+                        DeleteObject(hBitmap);
+                    }
+
+                    // Restore & activate window
+                    Show();
+                    if (WindowState == WindowState.Minimized)
+                    {
+                        WindowState = WindowState.Normal;
+                    }
+                    Activate();
+
+                    // 1. Paste Screenshot -> 2. Wait -> 3. Paste Prompt
+                    await PasteClipboardImageThenPromptAsync(webView, PredefinedPrompts.PromptAnalyzeScreenshot, "Snip & Prompt");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Snip and paste failed: {ex.Message}");
+            }
+        }
+
+        private async System.Threading.Tasks.Task FullScreenshotAndPasteToCurrentTabAsync()
+        {
+            if (_activeTab == null || !_webViews.TryGetValue(_activeTab, out var webView))
+            {
+                ShowPromptPastedFeedback("No active tab open");
+                return;
+            }
+
+            try
+            {
+                double oldOpacity = this.Opacity;
+                this.Opacity = 0;
+                await System.Threading.Tasks.Task.Delay(150);
+
+                int screenLeft = (int)System.Windows.SystemParameters.VirtualScreenLeft;
+                int screenTop = (int)System.Windows.SystemParameters.VirtualScreenTop;
+                int screenWidth = (int)System.Windows.SystemParameters.VirtualScreenWidth;
+                int screenHeight = (int)System.Windows.SystemParameters.VirtualScreenHeight;
+
+                using (var bmp = new System.Drawing.Bitmap(screenWidth, screenHeight))
+                {
+                    using (var g = System.Drawing.Graphics.FromImage(bmp))
+                    {
+                        g.CopyFromScreen(screenLeft, screenTop, 0, 0, bmp.Size);
+                    }
+
+                    var hBitmap = bmp.GetHbitmap();
+                    try
+                    {
+                        var bitmapSource = System.Windows.Interop.Imaging.CreateBitmapSourceFromHBitmap(
+                            hBitmap,
+                            IntPtr.Zero,
+                            System.Windows.Int32Rect.Empty,
+                            System.Windows.Media.Imaging.BitmapSizeOptions.FromEmptyOptions());
+
+                        System.Windows.Clipboard.SetImage(bitmapSource);
+                    }
+                    finally
+                    {
+                        DeleteObject(hBitmap);
+                    }
+                }
+
+                this.Opacity = oldOpacity;
+                Activate();
+
+                await PasteClipboardImageThenPromptAsync(webView, PredefinedPrompts.PromptAnalyzeScreenshot, "Screenshot & Prompt");
+            }
+            catch (Exception ex)
+            {
+                this.Opacity = 1.0;
+                System.Diagnostics.Debug.WriteLine($"Full screenshot and paste failed: {ex.Message}");
+            }
+        }
+
+        private async System.Threading.Tasks.Task PasteClipboardImageThenPromptAsync(
+            Microsoft.Web.WebView2.Wpf.WebView2 webView,
+            string promptText,
+            string feedbackTitle)
+        {
+            try
+            {
+                // 1. Focus the WebView2 control
+                webView.Focus();
+
+                const string focusInputScript = @"
+                    (function() {
+                        window.focus();
+                        let el = document.activeElement;
+                        if (!el || el === document.body || (el.tagName !== 'TEXTAREA' && el.tagName !== 'INPUT' && !el.isContentEditable)) {
+                            let candidate = document.querySelector('textarea, div[contenteditable=""true""], [role=""textbox""], #prompt-textarea, [contenteditable=""true""], p[data-placeholder], input[type=""text""]');
+                            if (candidate) {
+                                candidate.focus();
+                            }
+                        }
+                    })();
+                ";
+
+                if (webView.CoreWebView2 != null)
+                {
+                    await webView.CoreWebView2.ExecuteScriptAsync(focusInputScript);
+                }
+
+                await System.Threading.Tasks.Task.Delay(100);
+
+                // 2. Step 1: Paste Screenshot from Clipboard into Current Tab (Ctrl+V)
+                keybd_event(VK_CONTROL, 0, 0, UIntPtr.Zero);
+                keybd_event(VK_V, 0, 0, UIntPtr.Zero);
+                keybd_event(VK_V, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                keybd_event(VK_CONTROL, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+
+                // 3. Step 2: Wait for web app (ChatGPT, Claude, Gemini, etc.) to ingest the image upload
+                await System.Threading.Tasks.Task.Delay(750);
+
+                // 4. Step 3: Copy prompt text to clipboard
+                System.Windows.Clipboard.SetText(promptText);
+
+                // 5. Refocus input element in webView
+                webView.Focus();
+                if (webView.CoreWebView2 != null)
+                {
+                    await webView.CoreWebView2.ExecuteScriptAsync(focusInputScript);
+                }
+
+                await System.Threading.Tasks.Task.Delay(100);
+
+                // 6. Step 4: Paste Prompt text into web application (Ctrl+V)
+                keybd_event(VK_CONTROL, 0, 0, UIntPtr.Zero);
+                keybd_event(VK_V, 0, 0, UIntPtr.Zero);
+                keybd_event(VK_V, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                keybd_event(VK_CONTROL, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+
+                // 7. Visual confirmation banner
+                ShowPromptPastedFeedback(feedbackTitle);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed in PasteClipboardImageThenPromptAsync: {ex.Message}");
+            }
+        }
 
         private async System.Threading.Tasks.Task PastePromptIntoActiveTabAsync(string promptText, string promptTitle)
         {
