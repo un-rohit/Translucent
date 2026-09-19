@@ -56,12 +56,18 @@ initSetting('payment_url', 'https://buy.stripe.com/example_or_contact_admin');
 initSetting('support_contact', 'Telegram: @translucent_admin | Email: support@translucent.ai');
 initSetting('admin_password', ADMIN_PASSWORD);
 initSetting('google_client_id', DEFAULT_GOOGLE_CLIENT_ID);
-initSetting('download_url', '/downloads/Translucent-v2.4.0.zip');
+initSetting('download_url', '/downloads/Translucent.exe');
 
 // Update google_client_id if empty
 const currentGoogleId = db.prepare("SELECT value FROM settings WHERE key = 'google_client_id'").get()?.value;
 if (!currentGoogleId || currentGoogleId.trim() === '') {
     db.prepare("UPDATE settings SET value = ? WHERE key = 'google_client_id'").run(DEFAULT_GOOGLE_CLIENT_ID);
+}
+
+// Update download_url if pointing to zip
+const currentDl = db.prepare("SELECT value FROM settings WHERE key = 'download_url'").get()?.value;
+if (!currentDl || currentDl.includes('.zip')) {
+    db.prepare("UPDATE settings SET value = ? WHERE key = 'download_url'").run('/downloads/Translucent.exe');
 }
 
 // Middleware
@@ -136,7 +142,7 @@ app.get('/api/public/config', (req, res) => {
     const paymentUrl = db.prepare("SELECT value FROM settings WHERE key = 'payment_url'").get()?.value || '';
     const supportContact = db.prepare("SELECT value FROM settings WHERE key = 'support_contact'").get()?.value || '';
     const googleClientId = db.prepare("SELECT value FROM settings WHERE key = 'google_client_id'").get()?.value || '';
-    const downloadUrl = db.prepare("SELECT value FROM settings WHERE key = 'download_url'").get()?.value || '/downloads/Translucent-v2.4.0.zip';
+    const downloadUrl = db.prepare("SELECT value FROM settings WHERE key = 'download_url'").get()?.value || '/downloads/Translucent.exe';
 
     res.json({
         paymentUrl,
@@ -148,7 +154,7 @@ app.get('/api/public/config', (req, res) => {
 
 // Direct Application Download Endpoint
 app.get('/api/download', (req, res) => {
-    const downloadUrl = db.prepare("SELECT value FROM settings WHERE key = 'download_url'").get()?.value || '/downloads/Translucent-v2.4.0.zip';
+    const downloadUrl = db.prepare("SELECT value FROM settings WHERE key = 'download_url'").get()?.value || '/downloads/Translucent.exe';
     res.redirect(downloadUrl);
 });
 

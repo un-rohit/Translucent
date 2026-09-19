@@ -39,7 +39,7 @@ server/node_modules/
 server/data/
 server/.env
 
-# Zip Archives
-*.zip
-!server/public/downloads/*.zip
-publish_v2.4.0/
+# Downloads
+!server/public/downloads/*
+publish_final/
+publish_temp/

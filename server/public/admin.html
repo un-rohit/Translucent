@@ -722,9 +722,9 @@
             </div>
 
             <div class="form-group">
-                <label>Direct Application Download URL</label>
-                <input type="text" id="settingDownloadUrl" placeholder="/downloads/Translucent-v2.4.0.zip or external direct link">
-                <small style="color: var(--text-muted); font-size: 11px; display: block; margin-top: 4px;">Default is internal zip (/downloads/Translucent-v2.4.0.zip). You can also put Google Drive, Dropbox, or S3 link.</small>
+                <label>Direct Application Download URL (.exe / link)</label>
+                <input type="text" id="settingDownloadUrl" placeholder="/downloads/Translucent.exe or Google Drive/S3 direct link">
+                <small style="color: var(--text-muted); font-size: 11px; display: block; margin-top: 4px;">Default is internal direct executable (/downloads/Translucent.exe). You can also put a Google Drive, Dropbox, or S3 link.</small>
             </div>
 
             <div class="form-group">
@@ -1013,7 +1013,7 @@
                 if (res.ok) {
                     const cfg = await res.json();
                     document.getElementById('settingGoogleClientId').value = cfg.googleClientId || '';
-                    document.getElementById('settingDownloadUrl').value = cfg.downloadUrl || '/downloads/Translucent-v2.4.0.zip';
+                    document.getElementById('settingDownloadUrl').value = cfg.downloadUrl || '/downloads/Translucent.exe';
                     document.getElementById('settingPaymentUrl').value = cfg.paymentUrl || '';
                     document.getElementById('settingSupportContact').value = cfg.supportContact || '';
                 }
