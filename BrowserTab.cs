@@ -29,6 +29,20 @@ namespace InvisibleChat
             set { _isActive = value; Notify(); }
         }
 
+        private bool _isPlayingAudio;
+        public bool IsPlayingAudio
+        {
+            get => _isPlayingAudio;
+            set { _isPlayingAudio = value; Notify(); }
+        }
+
+        private bool _isMuted;
+        public bool IsMuted
+        {
+            get => _isMuted;
+            set { _isMuted = value; Notify(); }
+        }
+
         public event PropertyChangedEventHandler? PropertyChanged;
         private void Notify([System.Runtime.CompilerServices.CallerMemberName] string? n = null)
             => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(n));

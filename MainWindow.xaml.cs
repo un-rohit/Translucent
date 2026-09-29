@@ -69,6 +69,7 @@ namespace InvisibleChat
         private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
             var config = ConfigManager.Load();
+            UpdateAudioSourceUi();
 
             // 0. Initialize Authentication & Subscription Gate
             AuthManager.Instance.AuthStateChanged += () => Dispatcher.Invoke(UpdateSubscriptionGateUI);
@@ -133,9 +134,16 @@ namespace InvisibleChat
                     Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                     "InvisibleChat", "BrowserProfile");
 
+                var options = new CoreWebView2EnvironmentOptions(
+                    "--enable-features=AutoupdateElevated,MediaStream,WebRTC-H264WithOpenH264FFmpeg,AudioServiceOutOfProcess " +
+                    "--autoplay-policy=no-user-gesture-required " +
+                    "--enable-usermedia-screen-capturing " +
+                    "--allow-file-access-from-files");
+
                 _webViewEnv = await CoreWebView2Environment.CreateAsync(
                     browserExecutableFolder: null,
-                    userDataFolder: userDataFolder);
+                    userDataFolder: userDataFolder,
+                    options: options);
             }
             catch (Exception ex)
             {
@@ -183,6 +191,28 @@ namespace InvisibleChat
                     webView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = true;
                     webView.CoreWebView2.Settings.AreDevToolsEnabled = true;
                     webView.CoreWebView2.PermissionRequested += WebView_PermissionRequested;
+
+                    webView.CoreWebView2.IsDocumentPlayingAudioChanged += (s, ev) =>
+                    {
+                        Dispatcher.Invoke(() =>
+                        {
+                            if (webView.CoreWebView2 != null)
+                            {
+                                newTab.IsPlayingAudio = webView.CoreWebView2.IsDocumentPlayingAudio;
+                            }
+                        });
+                    };
+
+                    webView.CoreWebView2.IsMutedChanged += (s, ev) =>
+                    {
+                        Dispatcher.Invoke(() =>
+                        {
+                            if (webView.CoreWebView2 != null)
+                            {
+                                newTab.IsMuted = webView.CoreWebView2.IsMuted;
+                            }
+                        });
+                    };
 
                     webView.CoreWebView2.NavigationStarting += (s, ev) =>
                     {
@@ -1060,7 +1090,9 @@ namespace InvisibleChat
 
                 string cleanHost = host.ToLower();
                 bool locAllowed = false;
-                bool micAllowed = false;
+                bool micAllowed = true;
+                bool camAllowed = true;
+                bool isMuted = false;
 
                 if (_sitePermissions.TryGetValue(cleanHost, out var permissions))
                 {
@@ -1069,12 +1101,24 @@ namespace InvisibleChat
 
                     if (permissions.TryGetValue(Microsoft.Web.WebView2.Core.CoreWebView2PermissionKind.Microphone, out var micState))
                         micAllowed = micState == Microsoft.Web.WebView2.Core.CoreWebView2PermissionState.Allow;
+
+                    if (permissions.TryGetValue(Microsoft.Web.WebView2.Core.CoreWebView2PermissionKind.Camera, out var camState))
+                        camAllowed = camState == Microsoft.Web.WebView2.Core.CoreWebView2PermissionState.Allow;
+                }
+
+                if (_webViews.TryGetValue(_activeTab, out var curWv) && curWv.CoreWebView2 != null)
+                {
+                    isMuted = curWv.CoreWebView2.IsMuted;
                 }
 
                 _isSettingPermissions = true;
                 LocationPermissionToggle.IsChecked = locAllowed;
                 MicrophonePermissionToggle.IsChecked = micAllowed;
+                CameraPermissionToggle.IsChecked = camAllowed;
+                SoundPermissionToggle.IsChecked = !isMuted;
                 _isSettingPermissions = false;
+
+                UpdatePopupTabAudioText(isMuted);
 
                 SiteInfoPopup.IsOpen = true;
             }
@@ -1091,6 +1135,40 @@ namespace InvisibleChat
             SiteInfoPopup.IsOpen = false;
         }
 
+        private void PopupTabMuteBtn_Click(object sender, RoutedEventArgs e)
+        {
+            if (_activeTab == null) return;
+            try
+            {
+                if (_webViews.TryGetValue(_activeTab, out var wv) && wv.CoreWebView2 != null)
+                {
+                    wv.CoreWebView2.IsMuted = !wv.CoreWebView2.IsMuted;
+                    UpdatePopupTabAudioText(wv.CoreWebView2.IsMuted);
+                    _isSettingPermissions = true;
+                    SoundPermissionToggle.IsChecked = !wv.CoreWebView2.IsMuted;
+                    _isSettingPermissions = false;
+                }
+            }
+            catch { }
+        }
+
+        private void UpdatePopupTabAudioText(bool isMuted)
+        {
+            if (PopupTabAudioText != null && PopupTabMuteBtn != null)
+            {
+                if (isMuted)
+                {
+                    PopupTabAudioText.Text = "🔇 Tab Sound: Muted";
+                    PopupTabMuteBtn.Content = "Unmute Tab";
+                }
+                else
+                {
+                    PopupTabAudioText.Text = "🔊 Tab Sound: Unmuted";
+                    PopupTabMuteBtn.Content = "Mute Tab";
+                }
+            }
+        }
+
         private void PermissionToggle_Changed(object sender, RoutedEventArgs e)
         {
             if (_isSettingPermissions || _activeTab == null) return;
@@ -1100,10 +1178,24 @@ namespace InvisibleChat
                 var toggle = sender as System.Windows.Controls.Primitives.ToggleButton;
                 if (toggle == null) return;
 
-                Microsoft.Web.WebView2.Core.CoreWebView2PermissionKind kind = 
-                    toggle.Name == "LocationPermissionToggle" 
-                    ? Microsoft.Web.WebView2.Core.CoreWebView2PermissionKind.Geolocation 
-                    : Microsoft.Web.WebView2.Core.CoreWebView2PermissionKind.Microphone;
+                if (toggle.Name == "SoundPermissionToggle")
+                {
+                    bool allowSound = toggle.IsChecked == true;
+                    if (_webViews.TryGetValue(_activeTab, out var wv) && wv.CoreWebView2 != null)
+                    {
+                        wv.CoreWebView2.IsMuted = !allowSound;
+                        UpdatePopupTabAudioText(!allowSound);
+                    }
+                    return;
+                }
+
+                Microsoft.Web.WebView2.Core.CoreWebView2PermissionKind kind;
+                if (toggle.Name == "LocationPermissionToggle")
+                    kind = Microsoft.Web.WebView2.Core.CoreWebView2PermissionKind.Geolocation;
+                else if (toggle.Name == "CameraPermissionToggle")
+                    kind = Microsoft.Web.WebView2.Core.CoreWebView2PermissionKind.Camera;
+                else
+                    kind = Microsoft.Web.WebView2.Core.CoreWebView2PermissionKind.Microphone;
 
                 Microsoft.Web.WebView2.Core.CoreWebView2PermissionState state = 
                     toggle.IsChecked == true 
@@ -1132,6 +1224,35 @@ namespace InvisibleChat
             permissions[kind] = state;
         }
 
+        private void AllowAllPermissions_Click(object sender, RoutedEventArgs e)
+        {
+            if (_activeTab == null) return;
+            try
+            {
+                string host = new Uri(_activeTab.Url).Host.ToLower();
+                SavePermission(host, Microsoft.Web.WebView2.Core.CoreWebView2PermissionKind.Microphone, Microsoft.Web.WebView2.Core.CoreWebView2PermissionState.Allow);
+                SavePermission(host, Microsoft.Web.WebView2.Core.CoreWebView2PermissionKind.Camera, Microsoft.Web.WebView2.Core.CoreWebView2PermissionState.Allow);
+                SavePermission(host, Microsoft.Web.WebView2.Core.CoreWebView2PermissionKind.Geolocation, Microsoft.Web.WebView2.Core.CoreWebView2PermissionState.Allow);
+                SavePermission(host, Microsoft.Web.WebView2.Core.CoreWebView2PermissionKind.Notifications, Microsoft.Web.WebView2.Core.CoreWebView2PermissionState.Allow);
+
+                if (_webViews.TryGetValue(_activeTab, out var webView) && webView.CoreWebView2 != null)
+                {
+                    webView.CoreWebView2.IsMuted = false;
+                    webView.Reload();
+                }
+
+                _isSettingPermissions = true;
+                MicrophonePermissionToggle.IsChecked = true;
+                SoundPermissionToggle.IsChecked = true;
+                CameraPermissionToggle.IsChecked = true;
+                LocationPermissionToggle.IsChecked = true;
+                _isSettingPermissions = false;
+
+                UpdatePopupTabAudioText(false);
+            }
+            catch {}
+        }
+
         private void ResetPermissions_Click(object sender, RoutedEventArgs e)
         {
             if (_activeTab == null) return;
@@ -1140,15 +1261,20 @@ namespace InvisibleChat
                 string host = new Uri(_activeTab.Url).Host.ToLower();
                 _sitePermissions.Remove(host);
 
-                _isSettingPermissions = true;
-                LocationPermissionToggle.IsChecked = false;
-                MicrophonePermissionToggle.IsChecked = false;
-                _isSettingPermissions = false;
-
-                if (_webViews.TryGetValue(_activeTab, out var webView))
+                if (_webViews.TryGetValue(_activeTab, out var webView) && webView.CoreWebView2 != null)
                 {
+                    webView.CoreWebView2.IsMuted = false;
                     webView.Reload();
                 }
+
+                _isSettingPermissions = true;
+                LocationPermissionToggle.IsChecked = false;
+                MicrophonePermissionToggle.IsChecked = true;
+                SoundPermissionToggle.IsChecked = true;
+                CameraPermissionToggle.IsChecked = true;
+                _isSettingPermissions = false;
+
+                UpdatePopupTabAudioText(false);
             }
             catch {}
         }
@@ -1173,15 +1299,48 @@ namespace InvisibleChat
         {
             try
             {
-                string host = new Uri(e.Uri).Host.ToLower();
-                if (_sitePermissions.TryGetValue(host, out var permissions) && 
+                string host = string.Empty;
+                try
+                {
+                    if (!string.IsNullOrEmpty(e.Uri))
+                        host = new Uri(e.Uri).Host.ToLower();
+                }
+                catch { }
+
+                // Check explicit user overrides
+                if (!string.IsNullOrEmpty(host) && 
+                    _sitePermissions.TryGetValue(host, out var permissions) && 
                     permissions.TryGetValue(e.PermissionKind, out var state))
                 {
                     e.State = state;
                     e.Handled = true;
+                    return;
+                }
+
+                // Default behavior: automatically allow microphone, camera, sensors, notifications
+                // so current tab can freely use audio, voice, screen capture, meetings
+                switch (e.PermissionKind)
+                {
+                    case Microsoft.Web.WebView2.Core.CoreWebView2PermissionKind.Microphone:
+                    case Microsoft.Web.WebView2.Core.CoreWebView2PermissionKind.Camera:
+                    case Microsoft.Web.WebView2.Core.CoreWebView2PermissionKind.Notifications:
+                    case Microsoft.Web.WebView2.Core.CoreWebView2PermissionKind.OtherSensors:
+                    case Microsoft.Web.WebView2.Core.CoreWebView2PermissionKind.ClipboardRead:
+                        e.State = Microsoft.Web.WebView2.Core.CoreWebView2PermissionState.Allow;
+                        e.Handled = true;
+                        if (!string.IsNullOrEmpty(host))
+                        {
+                            SavePermission(host, e.PermissionKind, Microsoft.Web.WebView2.Core.CoreWebView2PermissionState.Allow);
+                        }
+                        break;
+                    default:
+                        break;
                 }
             }
-            catch {}
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"WebView PermissionRequested error: {ex.Message}");
+            }
         }
 
         private void UpdateNavButtonsState()
@@ -1844,21 +2003,36 @@ namespace InvisibleChat
 
                 if (DataContext is MainViewModel vm && vm.AudioSourceMic)
                 {
-                    _micCapture = new NAudio.Wave.WaveInEvent
+                    if (NAudio.Wave.WaveInEvent.DeviceCount == 0)
                     {
-                        WaveFormat = new NAudio.Wave.WaveFormat(16000, 16, 1)
-                    };
-                    _micCapture.DataAvailable += (s, e) =>
+                        throw new InvalidOperationException("No microphone recording device found on this PC.");
+                    }
+
+                    try
                     {
-                        _audioStream.WriteData(e.Buffer, 0, e.BytesRecorded, _micCapture.WaveFormat);
-                    };
-                    _micCapture.RecordingStopped += (s, e) =>
+                        _micCapture = new NAudio.Wave.WaveInEvent
+                        {
+                            WaveFormat = new NAudio.Wave.WaveFormat(16000, 16, 1)
+                        };
+                        _micCapture.DataAvailable += (s, e) =>
+                        {
+                            _audioStream.WriteData(e.Buffer, 0, e.BytesRecorded, _micCapture.WaveFormat);
+                        };
+                        _micCapture.StartRecording();
+                    }
+                    catch
                     {
-                        _audioStream?.Dispose();
-                    };
-                    _micCapture.StartRecording();
+                        _micCapture?.Dispose();
+                        _micCapture = new NAudio.Wave.WaveInEvent();
+                        _micCapture.DataAvailable += (s, e) =>
+                        {
+                            _audioStream.WriteData(e.Buffer, 0, e.BytesRecorded, _micCapture.WaveFormat);
+                        };
+                        _micCapture.StartRecording();
+                    }
+
                     _speechEngine.RecognizeAsync(System.Speech.Recognition.RecognizeMode.Multiple);
-                    AddCaptionItem("🎙️ System: Started microphone capture.", true);
+                    AddCaptionItem("🎙️ System: Microphone capture active (Listening to your voice).", true);
                 }
                 else
                 {
@@ -1873,14 +2047,246 @@ namespace InvisibleChat
                     };
                     _audioCapture.StartRecording();
                     _speechEngine.RecognizeAsync(System.Speech.Recognition.RecognizeMode.Multiple);
-                    AddCaptionItem("🔊 System: Started system audio loopback capture.", true);
+                    AddCaptionItem("🔊 System: System sound loopback active (Listening to meetings & browser audio).", true);
                 }
+                UpdateAudioSourceUi();
             }
             catch (Exception ex)
             {
                 AddCaptionItem($"⚠️ Speech recognition start failed: {ex.Message}", true);
                 AddCaptionItem("💡 System: Starting fallback simulation for demonstration...", true);
                 StartSimulation();
+            }
+        }
+
+        public void SwitchAudioSource(bool useMic)
+        {
+            if (DataContext is MainViewModel vm)
+            {
+                vm.AudioSourceMic = useMic;
+            }
+
+            UpdateAudioSourceUi();
+
+            // If speech recognition is actively running, hot-swap the capture device
+            if (DataContext is MainViewModel activeVm && activeVm.IsCaptionsListening)
+            {
+                try
+                {
+                    // Stop current hardware capture
+                    try { _audioCapture?.StopRecording(); } catch { }
+                    _audioCapture?.Dispose();
+                    _audioCapture = null;
+
+                    try { _micCapture?.StopRecording(); } catch { }
+                    _micCapture?.Dispose();
+                    _micCapture = null;
+
+                    try { _speechEngine?.RecognizeAsyncStop(); } catch { }
+
+                    _audioStream?.Dispose();
+                    _audioStream = new LoopbackResamplerStream();
+
+                    var audioFormat = new System.Speech.AudioFormat.SpeechAudioFormatInfo(
+                        16000, 
+                        System.Speech.AudioFormat.AudioBitsPerSample.Sixteen, 
+                        System.Speech.AudioFormat.AudioChannel.Mono);
+
+                    _speechEngine?.SetInputToAudioStream(_audioStream, audioFormat);
+
+                    if (useMic)
+                    {
+                        if (NAudio.Wave.WaveInEvent.DeviceCount == 0)
+                        {
+                            AddCaptionItem("⚠️ No microphone recording device detected on this system.", true);
+                            return;
+                        }
+
+                        try
+                        {
+                            _micCapture = new NAudio.Wave.WaveInEvent
+                            {
+                                WaveFormat = new NAudio.Wave.WaveFormat(16000, 16, 1)
+                            };
+                            _micCapture.DataAvailable += (s, e) =>
+                            {
+                                _audioStream.WriteData(e.Buffer, 0, e.BytesRecorded, _micCapture.WaveFormat);
+                            };
+                            _micCapture.StartRecording();
+                        }
+                        catch
+                        {
+                            _micCapture?.Dispose();
+                            _micCapture = new NAudio.Wave.WaveInEvent();
+                            _micCapture.DataAvailable += (s, e) =>
+                            {
+                                _audioStream.WriteData(e.Buffer, 0, e.BytesRecorded, _micCapture.WaveFormat);
+                            };
+                            _micCapture.StartRecording();
+                        }
+
+                        _speechEngine?.RecognizeAsync(System.Speech.Recognition.RecognizeMode.Multiple);
+                        AddCaptionItem("🎙️ Switched to Microphone capture (Listening to your voice).", true);
+                    }
+                    else
+                    {
+                        _audioCapture = new NAudio.Wave.WasapiLoopbackCapture();
+                        _audioCapture.DataAvailable += (s, e) =>
+                        {
+                            _audioStream.WriteData(e.Buffer, 0, e.BytesRecorded, _audioCapture.WaveFormat);
+                        };
+                        _audioCapture.StartRecording();
+                        _speechEngine?.RecognizeAsync(System.Speech.Recognition.RecognizeMode.Multiple);
+                        AddCaptionItem("🔊 Switched to System Sound loopback (Listening to meetings & browser audio).", true);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    AddCaptionItem($"⚠️ Failed to switch audio source: {ex.Message}", true);
+                }
+            }
+        }
+
+        private void UpdateAudioSourceUi()
+        {
+            if (DataContext is MainViewModel vm)
+            {
+                bool isMic = vm.AudioSourceMic;
+                if (AudioSourceSystemBtn != null && AudioSourceMicBtn != null)
+                {
+                    if (isMic)
+                    {
+                        AudioSourceMicBtn.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0xFF, 0x2E, 0x25, 0x48));
+                        AudioSourceMicBtn.BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xA8, 0x55, 0xF7));
+                        AudioSourceMicBtn.BorderThickness = new Thickness(1.2);
+
+                        AudioSourceSystemBtn.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0xFF, 0x1E, 0x1E, 0x22));
+                        AudioSourceSystemBtn.BorderBrush = System.Windows.Media.Brushes.Transparent;
+                        AudioSourceSystemBtn.BorderThickness = new Thickness(1);
+                    }
+                    else
+                    {
+                        AudioSourceSystemBtn.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0xFF, 0x1C, 0x30, 0x25));
+                        AudioSourceSystemBtn.BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x00, 0xE6, 0x76));
+                        AudioSourceSystemBtn.BorderThickness = new Thickness(1.2);
+
+                        AudioSourceMicBtn.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0xFF, 0x1E, 0x1E, 0x22));
+                        AudioSourceMicBtn.BorderBrush = System.Windows.Media.Brushes.Transparent;
+                        AudioSourceMicBtn.BorderThickness = new Thickness(1);
+                    }
+                }
+            }
+        }
+
+        private void AudioSourceSystem_Click(object sender, RoutedEventArgs e)
+        {
+            SwitchAudioSource(false);
+        }
+
+        private void AudioSourceMic_Click(object sender, RoutedEventArgs e)
+        {
+            SwitchAudioSource(true);
+        }
+
+        private void TestAudioDiag_Click(object sender, RoutedEventArgs e)
+        {
+            TestAudioDevicesAndPermissions();
+        }
+
+        private void OpenWindowsMicSettings_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = "ms-settings:privacy-microphone",
+                    UseShellExecute = true
+                });
+            }
+            catch { }
+        }
+
+        private void TestAudioDevicesAndPermissions()
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("🔊 TRANSLUCENT AUDIO & PERMISSION DIAGNOSTICS\n");
+
+            // 1. WASAPI Loopback System Sound
+            try
+            {
+                using var testLoopback = new NAudio.Wave.WasapiLoopbackCapture();
+                sb.AppendLine("✅ System Audio (Speakers Loopback): READY");
+                sb.AppendLine($"   • Format: {testLoopback.WaveFormat.SampleRate}Hz, {testLoopback.WaveFormat.BitsPerSample}-bit, {testLoopback.WaveFormat.Channels} channels");
+                sb.AppendLine("   • Can capture: Browser tabs, meeting audio, system media playback");
+            }
+            catch (Exception ex)
+            {
+                sb.AppendLine($"⚠️ System Audio Loopback: {ex.Message}");
+                sb.AppendLine("   • Check if an audio output device (speakers or headphones) is active.");
+            }
+
+            sb.AppendLine();
+
+            // 2. Microphone Sound Input
+            int micCount = NAudio.Wave.WaveInEvent.DeviceCount;
+            if (micCount > 0)
+            {
+                sb.AppendLine($"✅ Microphone Sound Input: READY ({micCount} device(s) found)");
+                for (int i = 0; i < micCount && i < 3; i++)
+                {
+                    try
+                    {
+                        var caps = NAudio.Wave.WaveInEvent.GetCapabilities(i);
+                        sb.AppendLine($"   • Device #{i + 1}: {caps.ProductName}");
+                    }
+                    catch { }
+                }
+
+                try
+                {
+                    using var testMic = new NAudio.Wave.WaveInEvent();
+                    testMic.StartRecording();
+                    System.Threading.Thread.Sleep(50);
+                    testMic.StopRecording();
+                    sb.AppendLine("   • Windows Microphone Permission: GRANTED (Accessible by Translucent)");
+                }
+                catch (Exception ex)
+                {
+                    sb.AppendLine($"   ⚠️ Recording test notice: {ex.Message}");
+                    sb.AppendLine("   • If microphone is blocked, enable 'Let desktop apps access your microphone' in Windows Privacy settings.");
+                }
+            }
+            else
+            {
+                sb.AppendLine("⚠️ Microphone: No recording devices detected on this PC.");
+                sb.AppendLine("   • Connect a microphone or headset to use voice transcription.");
+            }
+
+            sb.AppendLine();
+
+            // 3. Browser Permissions & Status
+            sb.AppendLine("🌐 Browser WebView2 Tab Media Capabilities:");
+            sb.AppendLine("   • MediaStream & WebRTC: Enabled for current tab");
+            sb.AppendLine("   • Autoplay Policy: Unrestricted (audio/video plays smoothly)");
+            sb.AppendLine("   • Permission Auto-Grant: Microphone, Sound, and Camera allowed");
+
+            if (_activeTab != null && _webViews.TryGetValue(_activeTab, out var curWv) && curWv.CoreWebView2 != null)
+            {
+                string host = string.Empty;
+                try { host = new Uri(_activeTab.Url).Host; } catch { }
+                sb.AppendLine($"   • Current Active Tab: {host}");
+                sb.AppendLine($"   • Tab Sound: {(curWv.CoreWebView2.IsMuted ? "MUTED 🔇" : "ACTIVE 🔊")}");
+            }
+
+            var result = System.Windows.MessageBox.Show(
+                sb.ToString() + "\n\nWould you like to open Windows Microphone Privacy Settings?",
+                "Audio & Microphone Diagnostics",
+                System.Windows.MessageBoxButton.YesNo,
+                System.Windows.MessageBoxImage.Information);
+
+            if (result == System.Windows.MessageBoxResult.Yes)
+            {
+                OpenWindowsMicSettings_Click(this, new RoutedEventArgs());
             }
         }
 

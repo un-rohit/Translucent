@@ -344,10 +344,13 @@
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*"/>
                                                 <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="Auto"/>
                                             </Grid.ColumnDefinitions>
                                             <TextBlock x:Name="TabTitleText" Grid.Column="0" Text="{Binding Title}" Foreground="#8A8A8C" 
-                                                       FontSize="11.5" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                                            <Button Grid.Column="1" Click="CloseTabBtn_Click" Tag="{Binding}" 
+                                                       FontSize="11.5" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                            <TextBlock x:Name="TabAudioIndicator" Grid.Column="1" Text="🔊" FontSize="9.5" Margin="0,0,4,0"
+                                                       VerticalAlignment="Center" Visibility="Collapsed"/>
+                                            <Button Grid.Column="2" Click="CloseTabBtn_Click" Tag="{Binding}" 
                                                     Style="{StaticResource IconButton}" Width="14" Height="14" Padding="1" 
                                                     VerticalAlignment="Center" WindowChrome.IsHitTestVisibleInChrome="True">
                                                 <Path Data="M2,2 L8,8 M8,2 L2,8" Stroke="#8A8A8C" StrokeThickness="1.2" Stretch="Uniform"/>
@@ -355,6 +358,16 @@
                                         </Grid>
                                     </Border>
                                     <DataTemplate.Triggers>
+                                        <DataTrigger Binding="{Binding IsPlayingAudio}" Value="True">
+                                            <Setter TargetName="TabAudioIndicator" Property="Visibility" Value="Visible"/>
+                                            <Setter TargetName="TabAudioIndicator" Property="Text" Value="🔊"/>
+                                            <Setter TargetName="TabAudioIndicator" Property="ToolTip" Value="Tab is playing audio"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding IsMuted}" Value="True">
+                                            <Setter TargetName="TabAudioIndicator" Property="Visibility" Value="Visible"/>
+                                            <Setter TargetName="TabAudioIndicator" Property="Text" Value="🔇"/>
+                                            <Setter TargetName="TabAudioIndicator" Property="ToolTip" Value="Tab audio is muted"/>
+                                        </DataTrigger>
                                         <DataTrigger Binding="{Binding IsActive}" Value="True">
                                             <Setter TargetName="TabBorder" Property="Background" Value="#1E1E20"/>
                                             <Setter TargetName="TabBorder" Property="BorderBrush" Value="{StaticResource PrimaryAccent}"/>
@@ -681,6 +694,7 @@
                                     <ColumnDefinition Width="Auto"/> <!-- Refresh -->
                                     <ColumnDefinition Width="Auto"/> <!-- Home -->
                                     <ColumnDefinition Width="Auto"/> <!-- Lock/Info -->
+                                    <ColumnDefinition Width="Auto"/> <!-- Tab Media/Perms -->
                                     <ColumnDefinition Width="*"/>    <!-- URL Bar -->
                                     <ColumnDefinition Width="Auto"/> <!-- Snip + Prompt -->
                                     <ColumnDefinition Width="Auto"/> <!-- Screenshot -->
@@ -697,7 +711,7 @@
                                     <Path Data="M15 18L9 12 15 6"
                                           Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
                                           StrokeThickness="1.5" Width="10" Height="10" Stretch="Uniform" Fill="Transparent"/>
-                                </Button>
+                                 </Button>
 
                                 <!-- Forward -->
                                 <Button Grid.Column="1" x:Name="BrowserForwardBtn"
@@ -733,13 +747,21 @@
                                 <Button Grid.Column="4" x:Name="SiteInfoBtn"
                                         Style="{StaticResource IconButton}" Width="30" Height="30"
                                         Click="SiteInfoBtn_Click" Margin="2,0"
-                                        WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="Site Information">
+                                        WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="Site Information &amp; Permissions">
                                     <Path x:Name="SiteInfoBtnIcon" Data="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z" 
                                           Fill="#8A8A8C" Width="12" Height="12" Stretch="Uniform"/>
                                 </Button>
 
+                                <!-- Tab Media Permissions Quick Access -->
+                                <Button Grid.Column="5" x:Name="TabMediaPermBtn"
+                                        Style="{StaticResource IconButton}" Width="30" Height="30"
+                                        Click="SiteInfoBtn_Click" Margin="1,0"
+                                        WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="Tab Media &amp; Permissions (Microphone, Sound, Camera)">
+                                    <TextBlock Text="🎙️" FontSize="11" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                </Button>
+
                                 <!-- URL / Search Bar -->
-                                <TextBox Grid.Column="5" x:Name="BrowserUrlBar"
+                                <TextBox Grid.Column="6" x:Name="BrowserUrlBar"
                                          Style="{StaticResource ModernTextBox}"
                                          Tag="Search Google or type a URL..."
                                          Padding="8,6" FontSize="12.5"
@@ -747,7 +769,7 @@
                                          WindowChrome.IsHitTestVisibleInChrome="True"/>
 
                                 <!-- Snip Screenshot + Paste with Prompt Button -->
-                                <Button Grid.Column="6" x:Name="BrowserSnipPromptBtn"
+                                <Button Grid.Column="7" x:Name="BrowserSnipPromptBtn"
                                         Style="{StaticResource IconButton}" Width="30" Height="30"
                                         Click="BrowserSnipPromptBtn_Click" Margin="2,0"
                                         WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="Snip Screenshot &amp; Paste with Prompt to Tab">
@@ -759,7 +781,7 @@
                                 </Button>
 
                                 <!-- Screenshot Button -->
-                                <Button Grid.Column="7" x:Name="BrowserScreenshotBtn"
+                                <Button Grid.Column="8" x:Name="BrowserScreenshotBtn"
                                         Style="{StaticResource IconButton}" Width="30" Height="30"
                                         Click="BrowserScreenshotBtn_Click" Margin="2,0"
                                         WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="Take Screenshot (Copies to clipboard) — Right-click for options">
@@ -782,7 +804,7 @@
                                 </Button>
 
                                 <!-- Paste Button -->
-                                <Button Grid.Column="8" x:Name="BrowserPasteBtn"
+                                <Button Grid.Column="9" x:Name="BrowserPasteBtn"
                                         Style="{StaticResource IconButton}" Width="30" Height="30"
                                         Click="BrowserPasteBtn_Click" Margin="2,0"
                                         WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="Paste Clipboard to Webpage (Ctrl+V)">
@@ -791,7 +813,7 @@
                                 </Button>
 
                                 <!-- Enter Button -->
-                                <Button Grid.Column="9" x:Name="BrowserEnterBtn"
+                                <Button Grid.Column="10" x:Name="BrowserEnterBtn"
                                         Style="{StaticResource IconButton}" Width="30" Height="30"
                                         Click="BrowserEnterBtn_Click" Margin="2,0"
                                         WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="Simulate Enter Key (Submit/Send)">
@@ -800,7 +822,7 @@
                                 </Button>
 
                                 <!-- Go Button -->
-                                <Button Grid.Column="10" x:Name="BrowserGoBtn"
+                                <Button Grid.Column="11" x:Name="BrowserGoBtn"
                                         Style="{StaticResource ModernButton}"
                                         Width="34" Height="30" Margin="5,0,0,0" Padding="0"
                                         Click="BrowserGoBtn_Click"
@@ -926,7 +948,7 @@
 
                         <!-- Popup for Site Info / Permissions -->
                         <Popup x:Name="SiteInfoPopup" StaysOpen="False" Placement="Bottom" PlacementTarget="{Binding ElementName=SiteInfoBtn}" AllowsTransparency="True" PopupAnimation="Fade">
-                            <Border Background="#1C1C1F" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="14" Width="280">
+                            <Border Background="#1C1C1F" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="14" Width="300">
                                 <Border.Effect>
                                     <DropShadowEffect BlurRadius="15" Color="#000000" Opacity="0.5" ShadowDepth="3"/>
                                 </Border.Effect>
@@ -944,7 +966,7 @@
                                     </Grid>
 
                                     <!-- Connection Status -->
-                                    <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1" Padding="0,0,0,10" Margin="0,0,0,10">
+                                    <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1" Padding="0,0,0,8" Margin="0,0,0,8">
                                         <Grid>
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto"/>
@@ -952,57 +974,113 @@
                                             </Grid.ColumnDefinitions>
                                             <Path x:Name="PopupSecurityIcon" Grid.Column="0" Data="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z" 
                                                   Fill="#44FF44" Width="14" Height="14" Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                            <TextBlock x:Name="PopupSecurityText" Grid.Column="1" Text="Connection is secure" Foreground="#A0A0A5" FontSize="12.5" VerticalAlignment="Center"/>
+                                            <TextBlock x:Name="PopupSecurityText" Grid.Column="1" Text="Connection is secure" Foreground="#A0A0A5" FontSize="12" VerticalAlignment="Center"/>
+                                        </Grid>
+                                    </Border>
+
+                                    <!-- Tab Audio Controls -->
+                                    <Border Background="#252529" CornerRadius="6" Padding="8,6" Margin="0,0,0,8">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                                <TextBlock x:Name="PopupTabAudioText" Text="🔊 Tab Sound: Unmuted" Foreground="White" FontSize="11.5" FontWeight="SemiBold"/>
+                                                <TextBlock Text="System sound &amp; autoplay enabled" Foreground="{StaticResource TextMuted}" FontSize="9.5"/>
+                                            </StackPanel>
+                                            <Button Grid.Column="1" x:Name="PopupTabMuteBtn" Click="PopupTabMuteBtn_Click" Style="{StaticResource SecondaryButton}" Padding="8,3" FontSize="11" Height="22" Content="Mute Tab"/>
                                         </Grid>
                                     </Border>
 
                                     <!-- Permissions List -->
-                                    <TextBlock Text="Permissions" Foreground="{StaticResource TextMuted}" FontSize="10.5" FontWeight="Bold" Margin="0,0,0,8"/>
+                                    <TextBlock Text="TAB PERMISSIONS" Foreground="{StaticResource TextMuted}" FontSize="10" FontWeight="Bold" Margin="0,2,0,6"/>
                                     
-                                    <!-- Location Permission Row -->
-                                    <Grid Margin="0,4">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                        </Grid.ColumnDefinitions>
-                                        <Path Grid.Column="0" Data="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" 
-                                              Fill="#A0A0A5" Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                        <TextBlock Grid.Column="1" Text="Location" Foreground="White" FontSize="12.5" VerticalAlignment="Center"/>
-                                        <ToggleButton Grid.Column="2" x:Name="LocationPermissionToggle" Style="{StaticResource ToggleSwitchStyle}" Checked="PermissionToggle_Changed" Unchecked="PermissionToggle_Changed"/>
-                                    </Grid>
-
                                     <!-- Microphone Permission Row -->
-                                    <Grid Margin="0,4,0,12">
+                                    <Grid Margin="0,3">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
-                                        <Path Grid.Column="0" Data="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.42 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z" 
-                                              Fill="#A0A0A5" Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                        <TextBlock Grid.Column="1" Text="Microphone" Foreground="White" FontSize="12.5" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="0" Text="🎙️" FontSize="12" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                            <TextBlock Text="Microphone Sound" Foreground="White" FontSize="12" FontWeight="Medium"/>
+                                            <TextBlock Text="Voice calls, meetings, WebRTC" Foreground="{StaticResource TextMuted}" FontSize="9.5"/>
+                                        </StackPanel>
                                         <ToggleButton Grid.Column="2" x:Name="MicrophonePermissionToggle" Style="{StaticResource ToggleSwitchStyle}" Checked="PermissionToggle_Changed" Unchecked="PermissionToggle_Changed"/>
                                     </Grid>
 
-                                    <!-- Reset Permissions Button -->
-                                    <Button Content="Reset permissions" Style="{StaticResource SecondaryButton}" 
-                                            HorizontalAlignment="Left" Padding="12,4" Margin="0,0,0,12" FontSize="11.5" Height="24" Click="ResetPermissions_Click"/>
+                                    <!-- Sound & Autoplay Permission Row -->
+                                    <Grid Margin="0,3">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="🔊" FontSize="12" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                            <TextBlock Text="Sound &amp; Autoplay" Foreground="White" FontSize="12" FontWeight="Medium"/>
+                                            <TextBlock Text="Allow tab audio &amp; media autoplay" Foreground="{StaticResource TextMuted}" FontSize="9.5"/>
+                                        </StackPanel>
+                                        <ToggleButton Grid.Column="2" x:Name="SoundPermissionToggle" Style="{StaticResource ToggleSwitchStyle}" Checked="PermissionToggle_Changed" Unchecked="PermissionToggle_Changed"/>
+                                    </Grid>
 
-                                    <Separator Background="{StaticResource BorderBrush}" Margin="0,0,0,10"/>
+                                    <!-- Camera Permission Row -->
+                                    <Grid Margin="0,3">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="📹" FontSize="12" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                            <TextBlock Text="Camera &amp; Video" Foreground="White" FontSize="12" FontWeight="Medium"/>
+                                            <TextBlock Text="Video calls &amp; screen sharing" Foreground="{StaticResource TextMuted}" FontSize="9.5"/>
+                                        </StackPanel>
+                                        <ToggleButton Grid.Column="2" x:Name="CameraPermissionToggle" Style="{StaticResource ToggleSwitchStyle}" Checked="PermissionToggle_Changed" Unchecked="PermissionToggle_Changed"/>
+                                    </Grid>
+
+                                    <!-- Location Permission Row -->
+                                    <Grid Margin="0,3,0,8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="📍" FontSize="12" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                            <TextBlock Text="Location Access" Foreground="White" FontSize="12" FontWeight="Medium"/>
+                                            <TextBlock Text="Geolocation for maps/search" Foreground="{StaticResource TextMuted}" FontSize="9.5"/>
+                                        </StackPanel>
+                                        <ToggleButton Grid.Column="2" x:Name="LocationPermissionToggle" Style="{StaticResource ToggleSwitchStyle}" Checked="PermissionToggle_Changed" Unchecked="PermissionToggle_Changed"/>
+                                    </Grid>
+
+                                    <!-- Action Buttons -->
+                                    <Grid Margin="0,0,0,8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Button Grid.Column="0" Content="✅ Allow All" Style="{StaticResource ModernButton}" 
+                                                Padding="6,3" Margin="0,0,3,0" FontSize="11" Height="24" Click="AllowAllPermissions_Click"/>
+                                        <Button Grid.Column="1" Content="Reset All" Style="{StaticResource SecondaryButton}" 
+                                                Padding="6,3" Margin="3,0,0,0" FontSize="11" Height="24" Click="ResetPermissions_Click"/>
+                                    </Grid>
+
+                                    <Separator Background="{StaticResource BorderBrush}" Margin="0,0,0,6"/>
 
                                     <!-- Cookies and Site Data Row -->
-                                    <Button Style="{StaticResource IconButton}" HorizontalContentAlignment="Stretch" Padding="0,4" Margin="0,2" Click="ClearSiteData_Click">
+                                    <Button Style="{StaticResource IconButton}" HorizontalContentAlignment="Stretch" Padding="0,3" Margin="0,2" Click="ClearSiteData_Click">
                                         <Grid>
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto"/>
                                                 <ColumnDefinition Width="*"/>
                                                 <ColumnDefinition Width="Auto"/>
                                             </Grid.ColumnDefinitions>
-                                            <Path Grid.Column="0" Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10c0-5.52-4.48-10-10-10zm-3.5 6c.83 0 1.5-.67 1.5-1.5S9.33 5 8.5 5 7 5.67 7 6.5 7.67 8 8.5 8zm-2 7c.83 0 1.5-.67 1.5-1.5S7.33 12 6.5 12 5 12.67 5 13.5 5.67 15 6.5 15zm8 3c.83 0 1.5-.67 1.5-1.5S15.33 15 14.5 15s-1.5.67-1.5 1.5.67 1.5 1.5 1.5zm0-10c.83 0 1.5-.67 1.5-1.5S15.33 5 14.5 5s-1.5.67-1.5 1.5.67 1.5 1.5 1.5zm-3 5.5c.83 0 1.5-.67 1.5-1.5S10.33 9 9.5 9 8 9.67 8 10.5s.67 1.5 1.5 1.5z" 
-                                                  Fill="#A0A0A5" Width="14" Height="14" Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                            <TextBlock Grid.Column="1" Text="Cookies and site data" Foreground="White" FontSize="12.5" VerticalAlignment="Center"/>
-                                            <Path Grid.Column="2" Data="M8 5v14l11-7z" Fill="#8A8A8C" Width="8" Height="8" Stretch="Uniform" VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="0" Text="🍪" FontSize="12" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                            <TextBlock Grid.Column="1" Text="Clear Cookies &amp; Site Data" Foreground="White" FontSize="11.5" VerticalAlignment="Center"/>
+                                            <Path Grid.Column="2" Data="M8 5v14l11-7z" Fill="#8A8A8C" Width="7" Height="7" Stretch="Uniform" VerticalAlignment="Center"/>
                                         </Grid>
                                     </Button>
                                 </StackPanel>
@@ -1084,19 +1162,46 @@
 
                         <!-- Bottom Controls (Co-pilot Toggle, Source, On/Off, Clear) -->
                         <StackPanel Grid.Row="2">
-                            <Border Background="#18181B" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0" Padding="8,5">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <CheckBox Grid.Column="0" IsChecked="{Binding AutoCopilot, Mode=TwoWay}" VerticalAlignment="Center" WindowChrome.IsHitTestVisibleInChrome="True">
-                                        <TextBlock Text="⚡ Auto Co-pilot" Foreground="#F5A623" FontSize="11" FontWeight="SemiBold" Margin="4,0,0,0"/>
-                                    </CheckBox>
-                                    <CheckBox Grid.Column="1" IsChecked="{Binding AudioSourceMic, Mode=TwoWay}" VerticalAlignment="Center" WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="Checked: Mic, Unchecked: Speakers/Loopback">
-                                        <TextBlock Text="🎙️ Mic" Foreground="#A0A0A5" FontSize="11" Margin="3,0,0,0"/>
-                                    </CheckBox>
-                                </Grid>
+                            <Border Background="#18181B" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0" Padding="8,6">
+                                <StackPanel>
+                                    <!-- Row 1: Auto Co-pilot & Diagnostic Test -->
+                                    <Grid Margin="0,0,0,6">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <CheckBox Grid.Column="0" IsChecked="{Binding AutoCopilot, Mode=TwoWay}" VerticalAlignment="Center" WindowChrome.IsHitTestVisibleInChrome="True">
+                                            <TextBlock Text="⚡ Auto Co-pilot" Foreground="#F5A623" FontSize="11" FontWeight="SemiBold" Margin="4,0,0,0"/>
+                                        </CheckBox>
+                                        <Button Grid.Column="1" Click="TestAudioDiag_Click" Style="{StaticResource SecondaryButton}" 
+                                                Padding="6,2" Height="20" FontSize="10" WindowChrome.IsHitTestVisibleInChrome="True"
+                                                ToolTip="Test System Audio Loopback &amp; Microphone Permissions">
+                                            <TextBlock Text="🎧 Test Audio / Mic" Foreground="#A0A0A5" FontSize="10"/>
+                                        </Button>
+                                    </Grid>
+
+                                    <!-- Row 2: Audio Source Selector (System Sound vs Microphone) -->
+                                    <Grid Margin="0,2,0,2">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Button Grid.Column="0" x:Name="AudioSourceSystemBtn" Click="AudioSourceSystem_Click"
+                                                Margin="0,0,2,0" Padding="4,4" Height="24"
+                                                Style="{StaticResource SecondaryButton}"
+                                                WindowChrome.IsHitTestVisibleInChrome="True"
+                                                ToolTip="Capture System Sound: Meeting calls, YouTube, browser tabs, PC audio">
+                                            <TextBlock Text="🔊 System Sound" FontSize="10.5" FontWeight="SemiBold"/>
+                                        </Button>
+                                        <Button Grid.Column="1" x:Name="AudioSourceMicBtn" Click="AudioSourceMic_Click"
+                                                Margin="2,0,0,0" Padding="4,4" Height="24"
+                                                Style="{StaticResource SecondaryButton}"
+                                                WindowChrome.IsHitTestVisibleInChrome="True"
+                                                ToolTip="Capture Microphone: Your voice spoken into mic">
+                                            <TextBlock Text="🎙️ Microphone" FontSize="10.5" FontWeight="SemiBold"/>
+                                        </Button>
+                                    </Grid>
+                                </StackPanel>
                             </Border>
 
                             <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0" Padding="10" Background="{StaticResource HeaderBg}">
@@ -1120,7 +1225,7 @@
             <Grid Grid.Row="0" Grid.RowSpan="3" Background="#DD0C0C0E"
                   Visibility="{Binding IsSettingsOpen, Converter={StaticResource BoolToVis}}">
                 <Border Background="#1E1E20" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
-                        CornerRadius="8" Width="320" Height="430"
+                        CornerRadius="8" Width="320" Height="470"
                         HorizontalAlignment="Center" VerticalAlignment="Center" Padding="18">
                     <Grid>
                         <Grid.RowDefinitions>
@@ -1193,12 +1298,30 @@
                                                FontSize="12" Margin="5,0,0,0"/>
                                 </CheckBox>
 
-                                <CheckBox IsChecked="{Binding AudioSourceMic, Mode=TwoWay}"
-                                          VerticalAlignment="Center" Margin="0,0,0,4"
-                                          WindowChrome.IsHitTestVisibleInChrome="True">
-                                    <TextBlock Text="🎙️ Use Microphone for Captions" Foreground="{StaticResource TextMain}"
-                                               FontSize="12" Margin="5,0,0,0"/>
-                                </CheckBox>
+                                <!-- Audio Source & Permissions Box in Settings -->
+                                <Border Background="#161619" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="10,8" Margin="0,4,0,8">
+                                    <StackPanel>
+                                        <TextBlock Text="AUDIO &amp; MICROPHONE PERMISSIONS" Foreground="{StaticResource TextMuted}" FontSize="10" FontWeight="Bold" Margin="0,0,0,6"/>
+                                        <CheckBox IsChecked="{Binding AudioSourceMic, Mode=TwoWay}"
+                                                  VerticalAlignment="Center" Margin="0,0,0,8"
+                                                  WindowChrome.IsHitTestVisibleInChrome="True">
+                                            <TextBlock Text="🎙️ Use Microphone for Captions" Foreground="{StaticResource TextMain}"
+                                                       FontSize="11.5" Margin="5,0,0,0"/>
+                                        </CheckBox>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Button Grid.Column="0" Click="TestAudioDiag_Click" Style="{StaticResource SecondaryButton}"
+                                                    Content="🎧 Test Audio" Padding="4,4" FontSize="11" Margin="0,0,2,0"
+                                                    WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="Test WASAPI Loopback and Microphone permissions"/>
+                                            <Button Grid.Column="1" Click="OpenWindowsMicSettings_Click" Style="{StaticResource SecondaryButton}"
+                                                    Content="⚙️ Win Mic Settings" Padding="4,4" FontSize="11" Margin="2,0,0,0"
+                                                    WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="Open Windows Microphone Privacy Settings"/>
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
                             </StackPanel>
                         </ScrollViewer>
 
