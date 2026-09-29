@@ -16,10 +16,11 @@ const isVercel = process.env.VERCEL === '1' || process.env.NOW_REGION !== undefi
 // Database Setup (Universal: Supabase Cloud or Local SQLite)
 // ─────────────────────────────────────────────────────────────────
 const db = require('./db');
+const { initTelegramBot } = require('./bot');
 
 const DEFAULT_GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '845827182936-duqebq9k2l34ir3qqma7gp9jl8l2cg7l.apps.googleusercontent.com';
 
-// Ensure default settings exist
+// Ensure default settings exist & Start Telegram Bot
 (async () => {
     try {
         await db.initSetting('payment_url', 'https://buy.stripe.com/example_or_contact_admin');
@@ -27,8 +28,12 @@ const DEFAULT_GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '845827182936-d
         await db.initSetting('admin_password', ADMIN_PASSWORD);
         await db.initSetting('google_client_id', DEFAULT_GOOGLE_CLIENT_ID);
         await db.initSetting('download_url', '/downloads/Translucent.exe');
+        await db.initSetting('telegram_bot_username', process.env.TELEGRAM_BOT_USERNAME || '');
+
+        // Launch Telegram Bot
+        initTelegramBot();
     } catch (e) {
-        console.warn('Initial settings check:', e.message);
+        console.warn('Initial setup check:', e.message);
     }
 })();
 
@@ -106,12 +111,16 @@ app.get('/api/public/config', async (req, res) => {
         const supportContact = await db.getSetting('support_contact', '');
         const googleClientId = await db.getSetting('google_client_id', DEFAULT_GOOGLE_CLIENT_ID);
         const downloadUrl = await db.getSetting('download_url', '/downloads/Translucent.exe');
+        const telegramBotUsername = (await db.getSetting('telegram_bot_username', '')) || process.env.TELEGRAM_BOT_USERNAME || '';
+        const telegramUpiId = (await db.getSetting('telegram_upi_id', '')) || process.env.TELEGRAM_UPI_ID || 'rohit.1604@superyes';
 
         res.json({
             paymentUrl,
             supportContact,
             googleClientId,
-            downloadUrl
+            downloadUrl,
+            telegramBotUsername,
+            telegramUpiId
         });
     } catch (e) {
         res.status(500).json({ error: 'Failed to load public config' });
@@ -356,12 +365,14 @@ app.delete('/api/admin/users/:id', verifyAdminToken, async (req, res) => {
 // Admin Update Settings
 app.post('/api/admin/settings', verifyAdminToken, async (req, res) => {
     try {
-        const { paymentUrl, supportContact, newPassword, googleClientId, downloadUrl } = req.body;
+        const { paymentUrl, supportContact, newPassword, googleClientId, downloadUrl, telegramBotUsername, telegramUpiId } = req.body;
 
         if (paymentUrl !== undefined) await db.setSetting('payment_url', paymentUrl);
         if (supportContact !== undefined) await db.setSetting('support_contact', supportContact);
         if (googleClientId !== undefined) await db.setSetting('google_client_id', googleClientId.trim());
         if (downloadUrl !== undefined) await db.setSetting('download_url', downloadUrl.trim());
+        if (telegramBotUsername !== undefined) await db.setSetting('telegram_bot_username', telegramBotUsername.trim().replace(/^@/, ''));
+        if (telegramUpiId !== undefined) await db.setSetting('telegram_upi_id', telegramUpiId.trim());
         if (newPassword && newPassword.trim().length >= 6) await db.setSetting('admin_password', newPassword.trim());
 
         res.json({ message: 'Settings updated successfully' });

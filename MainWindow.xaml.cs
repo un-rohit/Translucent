@@ -607,7 +607,18 @@ namespace InvisibleChat
         {
             try
             {
-                string url = AuthManager.Instance.PaymentUrl;
+                var auth = AuthManager.Instance;
+                string url = auth.PaymentUrl;
+
+                // If Telegram bot is configured, direct the user to the Telegram payment bot with deep link
+                if (!string.IsNullOrEmpty(auth.TelegramBotUsername))
+                {
+                    string startPayload = auth.UserId > 0 
+                        ? $"sub_{auth.UserId}" 
+                        : $"sub_{auth.UserEmail.Replace("@", "_at_").Replace(".", "_")}";
+                    url = $"https://t.me/{auth.TelegramBotUsername}?start={startPayload}";
+                }
+
                 if (!string.IsNullOrEmpty(url))
                 {
                     System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo

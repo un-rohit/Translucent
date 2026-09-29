@@ -32,6 +32,8 @@ namespace InvisibleChat
 
         public string PaymentUrl { get; private set; } = "https://buy.stripe.com/example";
         public string SupportContact { get; private set; } = "Telegram: @translucent_admin";
+        public string TelegramBotUsername { get; private set; } = string.Empty;
+        public int UserId { get; private set; } = 0;
 
         public AppConfig Config { get; private set; }
 
@@ -79,6 +81,10 @@ namespace InvisibleChat
                     {
                         SupportContact = sContact.GetString()!;
                     }
+                    if (doc.RootElement.TryGetProperty("telegramBotUsername", out var tBot) && !string.IsNullOrEmpty(tBot.GetString()))
+                    {
+                        TelegramBotUsername = tBot.GetString()!.Trim().TrimStart('@');
+                    }
                 }
             }
             catch (Exception ex)
@@ -123,6 +129,11 @@ namespace InvisibleChat
 
                     if (root.TryGetProperty("user", out var user))
                     {
+                        if (user.TryGetProperty("id", out var uid))
+                        {
+                            if (uid.ValueKind == JsonValueKind.Number) UserId = uid.GetInt32();
+                            else if (int.TryParse(uid.GetString(), out var parsedId)) UserId = parsedId;
+                        }
                         if (user.TryGetProperty("email", out var e)) UserEmail = e.GetString() ?? UserEmail;
                         if (user.TryGetProperty("name", out var n)) UserName = n.GetString() ?? UserName;
                         if (user.TryGetProperty("avatarUrl", out var a)) UserAvatarUrl = a.GetString() ?? UserAvatarUrl;
