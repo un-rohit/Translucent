@@ -465,10 +465,10 @@
 
             document.getElementById('successContainer').style.display = 'flex';
 
-            // 3. Attempt direct redirect fallback to ensure loopback gets hit
+            // 3. Auto-close tab after short delay
             setTimeout(() => {
-                window.location.href = callbackUrl;
-            }, 600);
+                try { window.close(); } catch (e) {}
+            }, 2000);
         }
     </script>
 </body>

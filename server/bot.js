@@ -63,7 +63,6 @@ function initTelegramBot() {
 
             return ctx.replyWithMarkdown(greeting, Markup.inlineKeyboard([
                 [Markup.button.callback('👑 Lifetime Pro Access — ₹99 Only', `plan_0_lifetime_${targetUserId}`)],
-                [Markup.button.callback('💎 1 Month Pro — ₹49', `plan_30_pro_${targetUserId}`)],
                 [Markup.button.callback('❓ Need Help / Contact Support', 'contact_support')]
             ]));
         });
@@ -85,18 +84,14 @@ function initTelegramBot() {
             const planType = ctx.match[2];
             const userId = ctx.match[3];
 
-            let planName = 'Lifetime Pro Access';
-            let amount = '₹99';
-            if (durationDays === 30) {
-                planName = '1 Month Pro';
-                amount = '₹49';
-            }
+            const planName = 'Lifetime Pro Access';
+            const amount = '₹99';
 
             // Save pending order in memory
             pendingOrders.set(ctx.chat.id, {
                 userId: userId !== 'unknown' ? userId : null,
                 plan: planType,
-                durationDays,
+                durationDays: 0,
                 planName,
                 amount
             });
@@ -120,8 +115,7 @@ function initTelegramBot() {
                         caption: paymentMsg,
                         parse_mode: 'Markdown',
                         ...Markup.inlineKeyboard([
-                            [Markup.button.callback('🔄 Choose Another Plan', 'reselect_plan')],
-                            [Markup.button.callback('💬 Contact Admin', 'contact_support')]
+                            [Markup.button.callback('💬 Contact Admin / Help', 'contact_support')]
                         ])
                     });
                 } catch (imgErr) {
@@ -130,20 +124,8 @@ function initTelegramBot() {
             }
 
             return ctx.replyWithMarkdown(paymentMsg, Markup.inlineKeyboard([
-                [Markup.button.callback('🔄 Choose Another Plan', 'reselect_plan')],
-                [Markup.button.callback('💬 Contact Admin', 'contact_support')]
+                [Markup.button.callback('💬 Contact Admin / Help', 'contact_support')]
             ]));
-        });
-
-        bot.action('reselect_plan', async (ctx) => {
-            await ctx.answerCbQuery();
-            return ctx.replyWithMarkdown(
-                `⚡ *Select your subscription plan:*`,
-                Markup.inlineKeyboard([
-                    [Markup.button.callback('👑 Lifetime Pro Access — ₹99 Only', 'plan_0_lifetime_unknown')],
-                    [Markup.button.callback('💎 1 Month Pro — ₹49', 'plan_30_pro_unknown')]
-                ])
-            );
         });
 
         bot.action('contact_support', async (ctx) => {

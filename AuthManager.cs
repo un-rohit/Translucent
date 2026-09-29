@@ -195,6 +195,17 @@ namespace InvisibleChat
                         var req = context.Request;
                         var res = context.Response;
 
+                        res.AddHeader("Access-Control-Allow-Origin", "*");
+                        res.AddHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+                        res.AddHeader("Access-Control-Allow-Headers", "*");
+
+                        if (req.HttpMethod == "OPTIONS")
+                        {
+                            res.StatusCode = 200;
+                            res.Close();
+                            return;
+                        }
+
                         string? token = req.QueryString["token"];
                         string? email = req.QueryString["email"];
                         string? name = req.QueryString["name"];
