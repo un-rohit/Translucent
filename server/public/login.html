@@ -236,7 +236,7 @@
             </div>
 
             <!-- Fallback 1-Click Fast Google Sign-In -->
-            <button id="customGoogleBtn" class="google-btn" onclick="signInWithGooglePrompt()">
+            <button id="customGoogleBtn" class="google-btn" onclick="startGoogleOAuth()">
                 <svg viewBox="0 0 24 24">
                     <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                     <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -263,9 +263,17 @@
             <p class="footer-note">Translucent uses secure OAuth 2.0. We never store your Google password.</p>
         </div>
 
+        <!-- Loading State Container -->
+        <div id="loadingContainer" class="success-state" style="display: none;">
+            <div class="success-icon" style="background: rgba(142, 45, 226, 0.2); color: #8E2DE2;">⚡</div>
+            <h2>Connecting with Google...</h2>
+            <p class="subtitle" style="margin-bottom: 12px;">Verifying your Google Account and securing your session.</p>
+        </div>
+
         <!-- Success Container -->
         <div id="successContainer" class="success-state">
-            <div class="success-icon">✓</div>
+            <div id="successCheckIcon" class="success-icon">✓</div>
+            <img id="successAvatar" class="success-icon" style="display: none; object-fit: cover; border: 2px solid #10B981;" alt="Avatar">
             <h2>Sign-In Successful!</h2>
             <p class="subtitle" style="margin-bottom: 12px;">Translucent desktop app has been linked to <strong id="successEmail"></strong>.</p>
             <p style="font-size: 13px; color: var(--text-secondary);">You can close this browser tab and return to Translucent.</p>
@@ -274,7 +282,17 @@
 
     <script>
         const urlParams = new URLSearchParams(window.location.search);
-        const desktopPort = urlParams.get('port') || '58291';
+        let desktopPort = urlParams.get('port') || '58291';
+        
+        // Check if port is stored in state query param (OAuth redirect)
+        const stateParam = urlParams.get('state');
+        if (stateParam) {
+            const m = stateParam.match(/port=(\d+)/);
+            if (m) desktopPort = m[1];
+        }
+
+        const authCode = urlParams.get('code');
+        const authError = urlParams.get('error');
 
         function decodeJwtResponse(token) {
             try {
@@ -290,20 +308,34 @@
         }
 
         async function handleCredentialResponse(response) {
-            const payload = decodeJwtResponse(response.credential);
-            if (!payload || !payload.email) {
-                alert('Could not parse Google credential');
-                return;
+            try {
+                const res = await fetch('/api/auth/google', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ credential: response.credential })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Authentication failed');
+                await completeSignIn(data);
+            } catch (e) {
+                alert('Google Sign-In failed: ' + e.message);
             }
-            await authenticateAndRedirect({
-                email: payload.email,
-                name: payload.name || payload.email.split('@')[0],
-                avatarUrl: payload.picture || '',
-                googleId: payload.sub
-            });
         }
 
+        // Initialize Google OAuth and GSI Button
         window.addEventListener('DOMContentLoaded', async () => {
+            // Handle OAuth Code Redirect Callback if present
+            if (authError) {
+                alert('Google Sign-In canceled or error: ' + authError);
+                return;
+            }
+
+            if (authCode) {
+                await handleOAuthCodeCallback(authCode);
+                return;
+            }
+
+            // Try loading Google Identity Services (GSI)
             try {
                 const res = await fetch('/api/public/config');
                 const cfg = await res.json();
@@ -311,72 +343,132 @@
                     const checkGsi = setInterval(() => {
                         if (window.google && google.accounts && google.accounts.id) {
                             clearInterval(checkGsi);
-                            google.accounts.id.initialize({
-                                client_id: cfg.googleClientId.trim(),
-                                callback: handleCredentialResponse
-                            });
-                            google.accounts.id.renderButton(
-                                document.getElementById("gsiButton"),
-                                { theme: "filled_blue", size: "large", width: 360, shape: "rectangular", text: "continue_with" }
-                            );
-                            document.getElementById("gsiButtonWrapper").style.display = "flex";
-                            document.getElementById("customGoogleBtn").style.display = "none";
+                            try {
+                                google.accounts.id.initialize({
+                                    client_id: cfg.googleClientId.trim(),
+                                    callback: handleCredentialResponse
+                                });
+                                google.accounts.id.renderButton(
+                                    document.getElementById("gsiButton"),
+                                    { theme: "filled_blue", size: "large", width: 360, shape: "rectangular", text: "continue_with" }
+                                );
+                                document.getElementById("gsiButtonWrapper").style.display = "flex";
+                                document.getElementById("customGoogleBtn").style.display = "none";
+                            } catch (initErr) {
+                                console.warn('GSI render error, using OAuth redirect button:', initErr);
+                            }
                         }
                     }, 100);
-                    setTimeout(() => clearInterval(checkGsi), 4000);
+                    setTimeout(() => clearInterval(checkGsi), 3500);
                 }
             } catch (e) {
                 console.warn('Config load error:', e);
             }
         });
 
-        async function signInWithGooglePrompt() {
-            const email = prompt('Enter your Google Account email to authenticate:', 'user@gmail.com');
-            if (!email) return;
-            const name = email.split('@')[0];
-            await authenticateAndRedirect({ email, name });
+        // Official Google OAuth 2.0 redirect flow
+        async function startGoogleOAuth() {
+            try {
+                const res = await fetch('/api/public/config');
+                const cfg = await res.json();
+                const clientId = cfg.googleClientId;
+                if (!clientId) {
+                    alert('Google Client ID is not configured on server.');
+                    return;
+                }
+
+                const redirectUri = window.location.origin + window.location.pathname;
+                const state = `port=${desktopPort}`;
+                const oauthUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
+                    `client_id=${encodeURIComponent(clientId)}` +
+                    `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+                    `&response_type=code` +
+                    `&scope=openid%20email%20profile` +
+                    `&state=${encodeURIComponent(state)}` +
+                    `&prompt=select_account`;
+
+                window.location.href = oauthUrl;
+            } catch (e) {
+                console.error('Failed to start Google OAuth:', e);
+                alert('Could not start Google Sign-In: ' + e.message);
+            }
+        }
+
+        // Handle OAuth authorization code exchange
+        async function handleOAuthCodeCallback(code) {
+            try {
+                document.getElementById('authContainer').style.display = 'none';
+                document.getElementById('loadingContainer').style.display = 'flex';
+
+                const redirectUri = window.location.origin + window.location.pathname;
+                const res = await fetch('/api/auth/google/code', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code, redirectUri })
+                });
+
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Failed to authenticate authorization code');
+
+                // Clean URL
+                window.history.replaceState({}, document.title, window.location.pathname);
+
+                await completeSignIn(data);
+            } catch (err) {
+                document.getElementById('loadingContainer').style.display = 'none';
+                document.getElementById('authContainer').style.display = 'block';
+                alert('Google Authentication Error: ' + err.message);
+            }
         }
 
         async function handleDirectAuth(e) {
             e.preventDefault();
-            const email = document.getElementById('emailInput').value;
-            const name = document.getElementById('nameInput').value;
-            await authenticateAndRedirect({ email, name });
-        }
+            const email = document.getElementById('emailInput').value.trim();
+            const name = document.getElementById('nameInput').value.trim();
+            if (!email) return;
 
-        async function authenticateAndRedirect({ email, name, avatarUrl = '', googleId = '' }) {
             try {
-                // 1. Authenticate with backend
                 const res = await fetch('/api/auth/google', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, name, avatarUrl, googleId })
+                    body: JSON.stringify({ email, name: name || email.split('@')[0] })
                 });
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.error || 'Authentication failed');
-
-                // 2. Transmit session token & user info back to Desktop App local listener
-                const callbackUrl = `http://127.0.0.1:${desktopPort}/callback/?token=${encodeURIComponent(data.token)}&email=${encodeURIComponent(data.user.email)}&name=${encodeURIComponent(data.user.name)}&status=${encodeURIComponent(data.user.status)}`;
-
-                try {
-                    await fetch(callbackUrl, { mode: 'no-cors' });
-                } catch (e) {
-                    console.log('Callback ping sent to desktop app');
-                }
-
-                // 3. Render success screen
-                document.getElementById('authContainer').style.display = 'none';
-                document.getElementById('successEmail').innerText = data.user.email;
-                document.getElementById('successContainer').style.display = 'flex';
-
-                // 4. Also attempt direct window redirect to ensure loopback receives parameters
-                setTimeout(() => {
-                    window.location.href = callbackUrl;
-                }, 400);
-
+                await completeSignIn(data);
             } catch (err) {
                 alert('Sign-In Error: ' + err.message);
             }
+        }
+
+        async function completeSignIn(data) {
+            // 1. Transmit session token & user info back to Desktop App local listener
+            const callbackUrl = `http://127.0.0.1:${desktopPort}/callback/?token=${encodeURIComponent(data.token)}&email=${encodeURIComponent(data.user.email)}&name=${encodeURIComponent(data.user.name)}&status=${encodeURIComponent(data.user.status)}`;
+
+            try {
+                await fetch(callbackUrl, { mode: 'no-cors' });
+            } catch (e) {
+                console.log('Loopback ping sent to desktop app');
+            }
+
+            // 2. Render success screen
+            document.getElementById('authContainer').style.display = 'none';
+            document.getElementById('loadingContainer').style.display = 'none';
+            document.getElementById('successEmail').innerText = `${data.user.name} (${data.user.email})`;
+
+            if (data.user.avatarUrl) {
+                const avatarImg = document.getElementById('successAvatar');
+                avatarImg.src = data.user.avatarUrl;
+                avatarImg.style.display = 'block';
+                document.getElementById('successCheckIcon').style.display = 'none';
+            }
+
+            document.getElementById('successContainer').style.display = 'flex';
+
+            // 3. Attempt direct redirect fallback to ensure loopback gets hit
+            setTimeout(() => {
+                window.location.href = callbackUrl;
+            }, 600);
         }
     </script>
 </body>

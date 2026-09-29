@@ -1313,6 +1313,13 @@
                                         </Button>
 
                                         <TextBlock x:Name="GateLoginStatusText" Text="" Foreground="#00E676" FontSize="11.5" HorizontalAlignment="Center" Margin="0,12,0,0" Visibility="Collapsed"/>
+
+                                        <!-- Server Endpoint Switcher / Indicator -->
+                                        <Button Click="GateSwitchServer_Click" Background="Transparent" BorderThickness="0" Foreground="#64748B"
+                                                Cursor="Hand" FontSize="10.5" HorizontalAlignment="Center" Margin="0,14,0,0"
+                                                WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="Click to switch between Cloud and Local server">
+                                            <TextBlock x:Name="GateUnauthServerIndicatorText" Text="🌐 Auth Server: Cloud (Vercel) [Click to switch]"/>
+                                        </Button>
                                     </StackPanel>
 
                                     <!-- ── STATE 2: SUBSCRIPTION REQUIRED / AWAITING APPROVAL ── -->
@@ -1374,6 +1381,13 @@
                                                 Cursor="Hand" FontSize="12" FontWeight="SemiBold" HorizontalAlignment="Center"
                                                 WindowChrome.IsHitTestVisibleInChrome="True">
                                             <TextBlock Text="Sign Out / Switch Account"/>
+                                        </Button>
+
+                                        <!-- Server Endpoint Switcher / Indicator -->
+                                        <Button Click="GateSwitchServer_Click" Background="Transparent" BorderThickness="0" Foreground="#64748B"
+                                                Cursor="Hand" FontSize="10.5" HorizontalAlignment="Center" Margin="0,10,0,0"
+                                                WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="Click to switch between Cloud and Local server">
+                                            <TextBlock x:Name="GateServerIndicatorText" Text="🌐 Auth Server: Cloud (Vercel) [Click to switch]"/>
                                         </Button>
                                     </StackPanel>
                                 </StackPanel>

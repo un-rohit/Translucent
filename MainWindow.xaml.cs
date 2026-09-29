@@ -562,6 +562,37 @@ namespace InvisibleChat
                         GateSupportText.Text = $"Need quick approval? {auth.SupportContact}";
                     }
                 }
+
+                // Update server endpoint indicator
+                string serverLabel = auth.Config.AuthServerUrl.Contains("localhost")
+                    ? "💻 Auth Server: Localhost (3000) [Click to switch]"
+                    : "☁️ Auth Server: Cloud (Vercel) [Click to switch]";
+
+                if (GateUnauthServerIndicatorText != null) GateUnauthServerIndicatorText.Text = serverLabel;
+                if (GateServerIndicatorText != null) GateServerIndicatorText.Text = serverLabel;
+            }
+        }
+
+        private async void GateSwitchServer_Click(object sender, RoutedEventArgs e)
+        {
+            var auth = AuthManager.Instance;
+            bool isLocal = auth.Config.AuthServerUrl.Contains("localhost");
+            string target = isLocal ? "https://translucent-livid.vercel.app" : "http://localhost:3000";
+            string targetName = isLocal ? "Cloud (Vercel)" : "Local Server (localhost:3000)";
+
+            var result = System.Windows.MessageBox.Show(
+                $"Switch Authentication Server to:\n{targetName} ({target})?",
+                "Switch Authentication Server",
+                System.Windows.MessageBoxButton.YesNo,
+                System.Windows.MessageBoxImage.Question
+            );
+
+            if (result == System.Windows.MessageBoxResult.Yes)
+            {
+                auth.Config.AuthServerUrl = target;
+                ConfigManager.Save(auth.Config);
+                await auth.InitializeAsync();
+                UpdateSubscriptionGateUI();
             }
         }
 

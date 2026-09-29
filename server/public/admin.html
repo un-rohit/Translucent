@@ -594,6 +594,11 @@
             </div>
         </div>
         <div class="nav-actions">
+            <select id="serverSelect" onchange="switchBackendServer(this.value)" style="background: #18181E; color: #00E676; border: 1px solid #33333F; padding: 6px 10px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; outline: none;">
+                <option value="">🟢 Local Server (Port 3000)</option>
+                <option value="https://translucent-livid.vercel.app">☁️ Vercel Cloud</option>
+            </select>
+            <button class="btn btn-outline btn-sm" onclick="manualRefresh()">🔄 Refresh</button>
             <button class="btn btn-outline btn-sm" onclick="openSettingsModal()">⚙️ Settings</button>
             <button class="btn btn-outline btn-sm" onclick="handleLogout()">Logout</button>
         </div>
@@ -757,13 +762,42 @@
         let currentFilter = 'all';
         let selectedUserId = null;
         let adminToken = localStorage.getItem('translucent_admin_token') || '';
+        let targetServer = localStorage.getItem('translucent_target_server') || '';
+
+        function api(path) {
+            return (targetServer ? targetServer.replace(/\/$/, '') : '') + path;
+        }
+
+        function switchBackendServer(val) {
+            targetServer = val;
+            localStorage.setItem('translucent_target_server', targetServer);
+            showToast(`Switched backend: ${val ? '☁️ Vercel Cloud' : '🟢 Local Server'}`);
+            checkAuth();
+        }
+
+        function manualRefresh() {
+            showToast('🔄 Refreshing user data...');
+            loadDashboardData();
+        }
 
         window.addEventListener('DOMContentLoaded', () => {
+            const selectEl = document.getElementById('serverSelect');
+            if (selectEl && targetServer) {
+                selectEl.value = targetServer;
+            }
+
             if (adminToken) {
                 checkAuth();
             } else {
                 showLoginOverlay(true);
             }
+
+            // Auto refresh in background every 8 seconds
+            setInterval(() => {
+                if (adminToken && document.getElementById('loginOverlay').style.display !== 'flex') {
+                    loadDashboardData(true);
+                }
+            }, 8000);
         });
 
         function showLoginOverlay(show) {
@@ -774,7 +808,7 @@
             e.preventDefault();
             const password = document.getElementById('adminPasswordInput').value;
             try {
-                const res = await fetch('/api/admin/login', {
+                const res = await fetch(api('/api/admin/login'), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ password })
@@ -800,7 +834,7 @@
 
         async function checkAuth() {
             try {
-                const res = await fetch('/api/admin/stats', {
+                const res = await fetch(api('/api/admin/stats'), {
                     headers: { 'Authorization': `Bearer ${adminToken}` }
                 });
                 if (!res.ok) throw new Error('Unauthorized');
@@ -811,11 +845,11 @@
             }
         }
 
-        async function loadDashboardData() {
+        async function loadDashboardData(silent = false) {
             try {
                 const [statsRes, usersRes] = await Promise.all([
-                    fetch('/api/admin/stats', { headers: { 'Authorization': `Bearer ${adminToken}` } }),
-                    fetch('/api/admin/users', { headers: { 'Authorization': `Bearer ${adminToken}` } })
+                    fetch(api('/api/admin/stats'), { headers: { 'Authorization': `Bearer ${adminToken}` } }),
+                    fetch(api('/api/admin/users'), { headers: { 'Authorization': `Bearer ${adminToken}` } })
                 ]);
 
                 if (statsRes.ok) {
@@ -832,8 +866,10 @@
                     renderUsersTable();
                 }
             } catch (err) {
-                console.error('Error loading dashboard:', err);
-                showToast('⚠️ Error connecting to server');
+                if (!silent) {
+                    console.error('Error loading dashboard:', err);
+                    showToast('⚠️ Error connecting to server');
+                }
             }
         }
 
@@ -948,7 +984,7 @@
             const notes = document.getElementById('approveNote').value;
 
             try {
-                const res = await fetch(`/api/admin/users/${selectedUserId}/approve`, {
+                const res = await fetch(api(`/api/admin/users/${selectedUserId}/approve`), {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -971,7 +1007,7 @@
             if (!confirm(`Are you sure you want to revoke subscription access for ${email}?`)) return;
 
             try {
-                const res = await fetch(`/api/admin/users/${id}/revoke`, {
+                const res = await fetch(api(`/api/admin/users/${id}/revoke`), {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -993,7 +1029,7 @@
             if (!confirm(`Permanently delete ${email} from database?`)) return;
 
             try {
-                const res = await fetch(`/api/admin/users/${id}`, {
+                const res = await fetch(api(`/api/admin/users/${id}`), {
                     method: 'DELETE',
                     headers: { 'Authorization': `Bearer ${adminToken}` }
                 });
@@ -1009,7 +1045,7 @@
 
         async function openSettingsModal() {
             try {
-                const res = await fetch('/api/public/config');
+                const res = await fetch(api('/api/public/config'));
                 if (res.ok) {
                     const cfg = await res.json();
                     document.getElementById('settingGoogleClientId').value = cfg.googleClientId || '';
@@ -1034,7 +1070,7 @@
             const newPassword = document.getElementById('settingNewPassword').value;
 
             try {
-                const res = await fetch('/api/admin/settings', {
+                const res = await fetch(api('/api/admin/settings'), {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

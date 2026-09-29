@@ -10,65 +10,27 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'translucent_super_secure_jwt_secret_2026';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
-
-// ─────────────────────────────────────────────────────────────────
-// Database Setup (SQLite using native node:sqlite)
-// ─────────────────────────────────────────────────────────────────
 const isVercel = process.env.VERCEL === '1' || process.env.NOW_REGION !== undefined;
-const dataDir = isVercel ? path.join('/tmp', 'data') : path.join(__dirname, 'data');
-if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true });
-}
-const dbPath = path.join(dataDir, 'translucent.db');
-const db = new DatabaseSync(dbPath);
 
-// Initialize Tables
-db.exec(`
-    CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        google_id TEXT UNIQUE,
-        email TEXT UNIQUE NOT NULL,
-        name TEXT,
-        avatar_url TEXT,
-        status TEXT DEFAULT 'pending', -- 'pending', 'active', 'suspended'
-        plan TEXT DEFAULT 'pro',       -- 'pro', 'enterprise', 'lifetime'
-        expires_at TEXT,               -- ISO 8601 string or NULL for lifetime
-        created_at TEXT NOT NULL,
-        last_active_at TEXT NOT NULL,
-        notes TEXT
-    );
+// ─────────────────────────────────────────────────────────────────
+// Database Setup (Universal: Supabase Cloud or Local SQLite)
+// ─────────────────────────────────────────────────────────────────
+const db = require('./db');
 
-    CREATE TABLE IF NOT EXISTS settings (
-        key TEXT PRIMARY KEY,
-        value TEXT NOT NULL
-    );
-`);
-
-// Insert default settings if missing
-const initSetting = (key, defaultValue) => {
-    const existing = db.prepare('SELECT value FROM settings WHERE key = ?').get(key);
-    if (!existing) {
-        db.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run(key, defaultValue);
-    }
-};
 const DEFAULT_GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '845827182936-duqebq9k2l34ir3qqma7gp9jl8l2cg7l.apps.googleusercontent.com';
-initSetting('payment_url', 'https://buy.stripe.com/example_or_contact_admin');
-initSetting('support_contact', 'Telegram: @translucent_admin | Email: support@translucent.ai');
-initSetting('admin_password', ADMIN_PASSWORD);
-initSetting('google_client_id', DEFAULT_GOOGLE_CLIENT_ID);
-initSetting('download_url', '/downloads/Translucent.exe');
 
-// Update google_client_id if empty
-const currentGoogleId = db.prepare("SELECT value FROM settings WHERE key = 'google_client_id'").get()?.value;
-if (!currentGoogleId || currentGoogleId.trim() === '') {
-    db.prepare("UPDATE settings SET value = ? WHERE key = 'google_client_id'").run(DEFAULT_GOOGLE_CLIENT_ID);
-}
-
-// Update download_url if pointing to zip
-const currentDl = db.prepare("SELECT value FROM settings WHERE key = 'download_url'").get()?.value;
-if (!currentDl || currentDl.includes('.zip')) {
-    db.prepare("UPDATE settings SET value = ? WHERE key = 'download_url'").run('/downloads/Translucent.exe');
-}
+// Ensure default settings exist
+(async () => {
+    try {
+        await db.initSetting('payment_url', 'https://buy.stripe.com/example_or_contact_admin');
+        await db.initSetting('support_contact', 'Telegram: @translucent_admin | Email: support@translucent.ai');
+        await db.initSetting('admin_password', ADMIN_PASSWORD);
+        await db.initSetting('google_client_id', DEFAULT_GOOGLE_CLIENT_ID);
+        await db.initSetting('download_url', '/downloads/Translucent.exe');
+    } catch (e) {
+        console.warn('Initial settings check:', e.message);
+    }
+})();
 
 // Middleware
 app.use(cors());
@@ -138,81 +100,141 @@ function checkUserSubscriptionActive(user) {
 // ─────────────────────────────────────────────────────────────────
 
 // Public Config (for desktop app and login page)
-app.get('/api/public/config', (req, res) => {
-    const paymentUrl = db.prepare("SELECT value FROM settings WHERE key = 'payment_url'").get()?.value || '';
-    const supportContact = db.prepare("SELECT value FROM settings WHERE key = 'support_contact'").get()?.value || '';
-    const googleClientId = db.prepare("SELECT value FROM settings WHERE key = 'google_client_id'").get()?.value || '';
-    const downloadUrl = db.prepare("SELECT value FROM settings WHERE key = 'download_url'").get()?.value || '/downloads/Translucent.exe';
+app.get('/api/public/config', async (req, res) => {
+    try {
+        const paymentUrl = await db.getSetting('payment_url', '');
+        const supportContact = await db.getSetting('support_contact', '');
+        const googleClientId = await db.getSetting('google_client_id', DEFAULT_GOOGLE_CLIENT_ID);
+        const downloadUrl = await db.getSetting('download_url', '/downloads/Translucent.exe');
 
-    res.json({
-        paymentUrl,
-        supportContact,
-        googleClientId,
-        downloadUrl
-    });
+        res.json({
+            paymentUrl,
+            supportContact,
+            googleClientId,
+            downloadUrl
+        });
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to load public config' });
+    }
 });
 
 // Direct Application Download Endpoint
-app.get('/api/download', (req, res) => {
-    const downloadUrl = db.prepare("SELECT value FROM settings WHERE key = 'download_url'").get()?.value || '/downloads/Translucent.exe';
+app.get('/api/download', async (req, res) => {
+    const downloadUrl = await db.getSetting('download_url', '/downloads/Translucent.exe');
     res.redirect(downloadUrl);
+});
+
+// Helper: Upsert User & Generate Session Token
+async function upsertAndAuthenticateUser(email, name, avatarUrl, googleId) {
+    const user = await db.upsertUser({ email, name, avatarUrl, googleId });
+    const isSubscribed = checkUserSubscriptionActive(user);
+    const token = generateUserToken(user);
+
+    return {
+        token,
+        isSubscribed,
+        user: {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            avatarUrl: user.avatar_url,
+            status: user.status,
+            plan: user.plan,
+            expiresAt: user.expires_at,
+            createdAt: user.created_at
+        }
+    };
+}
+
+// Google OAuth 2.0 Authorization Code Exchange Endpoint
+// Exchanges authorization code for real Google profile (name, email, avatar)
+app.post('/api/auth/google/code', async (req, res) => {
+    try {
+        const { code, redirectUri } = req.body;
+        if (!code) {
+            return res.status(400).json({ error: 'Authorization code is required' });
+        }
+
+        const clientId = (await db.getSetting('google_client_id')) || DEFAULT_GOOGLE_CLIENT_ID;
+        const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+
+        if (!clientSecret) {
+            console.error('Missing GOOGLE_CLIENT_SECRET in environment');
+            return res.status(500).json({ error: 'Server misconfiguration: GOOGLE_CLIENT_SECRET missing' });
+        }
+
+        const tokenParams = new URLSearchParams({
+            code,
+            client_id: clientId,
+            client_secret: clientSecret,
+            redirect_uri: redirectUri,
+            grant_type: 'authorization_code'
+        });
+
+        const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: tokenParams.toString()
+        });
+
+        const tokenData = await tokenRes.json();
+        if (!tokenRes.ok || !tokenData.access_token) {
+            console.error('Google token exchange error:', tokenData);
+            return res.status(400).json({ error: tokenData.error_description || tokenData.error || 'Failed to exchange authorization code' });
+        }
+
+        // Fetch userinfo from Google
+        const userinfoRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+            headers: { Authorization: `Bearer ${tokenData.access_token}` }
+        });
+
+        const profile = await userinfoRes.json();
+        if (!profile.email) {
+            return res.status(400).json({ error: 'Failed to retrieve user profile from Google' });
+        }
+
+        const authResult = await upsertAndAuthenticateUser(
+            profile.email,
+            profile.name || profile.email.split('@')[0],
+            profile.picture || null,
+            profile.sub || null
+        );
+
+        res.json(authResult);
+    } catch (error) {
+        console.error('Google OAuth Code Error:', error);
+        res.status(500).json({ error: 'Internal server error during Google OAuth authentication' });
+    }
 });
 
 // Google Authentication Endpoint
 // Handles both official Google ID tokens & direct credential payloads
 app.post('/api/auth/google', async (req, res) => {
     try {
-        const { email, name, avatarUrl, googleId } = req.body;
+        let { email, name, avatarUrl, googleId, credential } = req.body;
+
+        // If Google Identity Services ID token credential is provided, verify with Google
+        if (credential) {
+            try {
+                const verifyRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${credential}`);
+                if (verifyRes.ok) {
+                    const tokenInfo = await verifyRes.json();
+                    email = tokenInfo.email;
+                    name = tokenInfo.name || name;
+                    avatarUrl = tokenInfo.picture || avatarUrl;
+                    googleId = tokenInfo.sub || googleId;
+                }
+            } catch (err) {
+                console.warn('Google tokeninfo verification failed, continuing with body params:', err);
+            }
+        }
 
         if (!email) {
             return res.status(400).json({ error: 'Email is required' });
         }
 
-        const cleanEmail = email.trim().toLowerCase();
-        const now = new Date().toISOString();
-
-        // Check if user already exists
-        let user = db.prepare('SELECT * FROM users WHERE email = ?').get(cleanEmail);
-
-        if (user) {
-            // Update last active, name, avatar if provided
-            db.prepare(`
-                UPDATE users 
-                SET last_active_at = ?,
-                    name = COALESCE(?, name),
-                    avatar_url = COALESCE(?, avatar_url),
-                    google_id = COALESCE(?, google_id)
-                WHERE id = ?
-            `).run(now, name || null, avatarUrl || null, googleId || null, user.id);
-
-            user = db.prepare('SELECT * FROM users WHERE id = ?').get(user.id);
-        } else {
-            // Register new user with status 'pending'
-            const result = db.prepare(`
-                INSERT INTO users (google_id, email, name, avatar_url, status, plan, created_at, last_active_at)
-                VALUES (?, ?, ?, ?, 'pending', 'pro', ?, ?)
-            `).run(googleId || null, cleanEmail, name || cleanEmail.split('@')[0], avatarUrl || null, now, now);
-
-            user = db.prepare('SELECT * FROM users WHERE id = ?').get(result.lastInsertRowid);
-        }
-
-        const isSubscribed = checkUserSubscriptionActive(user);
-        const token = generateUserToken(user);
-
-        res.json({
-            token,
-            isSubscribed,
-            user: {
-                id: user.id,
-                email: user.email,
-                name: user.name,
-                avatarUrl: user.avatar_url,
-                status: user.status,
-                plan: user.plan,
-                expiresAt: user.expires_at,
-                createdAt: user.created_at
-            }
-        });
+        const authResult = await upsertAndAuthenticateUser(email, name, avatarUrl, googleId);
+        res.json(authResult);
     } catch (error) {
         console.error('Google Auth Error:', error);
         res.status(500).json({ error: 'Internal server error during authentication' });
@@ -220,9 +242,9 @@ app.post('/api/auth/google', async (req, res) => {
 });
 
 // Subscription Status Check (called by Desktop App)
-app.get('/api/subscription/status', verifyUserToken, (req, res) => {
+app.get('/api/subscription/status', verifyUserToken, async (req, res) => {
     try {
-        const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.userId);
+        const user = await db.getUserById(req.user.userId);
         if (!user) {
             return res.status(404).json({ error: 'User not found' });
         }
@@ -233,7 +255,7 @@ app.get('/api/subscription/status', verifyUserToken, (req, res) => {
             const expiry = new Date(user.expires_at);
             if (expiry <= new Date()) {
                 status = 'expired';
-                db.prepare("UPDATE users SET status = 'expired' WHERE id = ?").run(user.id);
+                await db.updateUserExpiredStatus(user.id);
             }
         }
 
@@ -264,9 +286,9 @@ app.get('/api/subscription/status', verifyUserToken, (req, res) => {
 // ─────────────────────────────────────────────────────────────────
 
 // Admin Login
-app.post('/api/admin/login', (req, res) => {
+app.post('/api/admin/login', async (req, res) => {
     const { password } = req.body;
-    const currentAdminPassword = db.prepare("SELECT value FROM settings WHERE key = 'admin_password'").get()?.value || ADMIN_PASSWORD;
+    const currentAdminPassword = (await db.getSetting('admin_password')) || ADMIN_PASSWORD;
 
     if (!password || password !== currentAdminPassword) {
         return res.status(401).json({ error: 'Invalid admin credentials' });
@@ -277,95 +299,75 @@ app.post('/api/admin/login', (req, res) => {
 });
 
 // Admin Stats
-app.get('/api/admin/stats', verifyAdminToken, (req, res) => {
-    const totalUsers = db.prepare('SELECT COUNT(*) as count FROM users').get().count;
-    const activeUsers = db.prepare("SELECT COUNT(*) as count FROM users WHERE status = 'active'").get().count;
-    const pendingUsers = db.prepare("SELECT COUNT(*) as count FROM users WHERE status = 'pending'").get().count;
-    const expiredUsers = db.prepare("SELECT COUNT(*) as count FROM users WHERE status = 'expired'").get().count;
-
-    res.json({
-        totalUsers,
-        activeUsers,
-        pendingUsers,
-        expiredUsers
-    });
+app.get('/api/admin/stats', verifyAdminToken, async (req, res) => {
+    try {
+        const stats = await db.getStats();
+        res.json(stats);
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to retrieve stats' });
+    }
 });
 
 // Admin Users List
-app.get('/api/admin/users', verifyAdminToken, (req, res) => {
-    const users = db.prepare('SELECT * FROM users ORDER BY created_at DESC').all();
-    res.json({ users });
+app.get('/api/admin/users', verifyAdminToken, async (req, res) => {
+    try {
+        const users = await db.getAllUsers();
+        res.json({ users });
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to retrieve users' });
+    }
 });
 
 // Admin Approve User Subscription
-app.post('/api/admin/users/:id/approve', verifyAdminToken, (req, res) => {
-    const userId = req.params.id;
-    const { durationDays = 30, plan = 'pro', notes = '' } = req.body;
-
-    let expiresAt = null;
-    if (durationDays > 0) {
-        const exp = new Date();
-        exp.setDate(exp.getDate() + parseInt(durationDays, 10));
-        expiresAt = exp.toISOString();
+app.post('/api/admin/users/:id/approve', verifyAdminToken, async (req, res) => {
+    try {
+        const userId = req.params.id;
+        const { durationDays = 30, plan = 'pro', notes = '' } = req.body;
+        const updatedUser = await db.approveUser(userId, { durationDays, plan, notes });
+        res.json({ message: 'User approved and subscription activated', user: updatedUser });
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to approve user' });
     }
-
-    db.prepare(`
-        UPDATE users 
-        SET status = 'active',
-            plan = ?,
-            expires_at = ?,
-            notes = COALESCE(?, notes)
-        WHERE id = ?
-    `).run(plan, expiresAt, notes || null, userId);
-
-    const updatedUser = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
-    res.json({ message: 'User approved and subscription activated', user: updatedUser });
 });
 
 // Admin Revoke User Subscription
-app.post('/api/admin/users/:id/revoke', verifyAdminToken, (req, res) => {
-    const userId = req.params.id;
-    const { reason = 'Revoked by admin' } = req.body;
-
-    db.prepare(`
-        UPDATE users 
-        SET status = 'pending',
-            notes = ?
-        WHERE id = ?
-    `).run(reason, userId);
-
-    const updatedUser = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
-    res.json({ message: 'User subscription revoked', user: updatedUser });
+app.post('/api/admin/users/:id/revoke', verifyAdminToken, async (req, res) => {
+    try {
+        const userId = req.params.id;
+        const { reason = 'Revoked by admin' } = req.body;
+        const updatedUser = await db.revokeUser(userId, reason);
+        res.json({ message: 'User subscription revoked', user: updatedUser });
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to revoke user' });
+    }
 });
 
 // Admin Delete User
-app.delete('/api/admin/users/:id', verifyAdminToken, (req, res) => {
-    const userId = req.params.id;
-    db.prepare('DELETE FROM users WHERE id = ?').run(userId);
-    res.json({ message: 'User deleted successfully' });
+app.delete('/api/admin/users/:id', verifyAdminToken, async (req, res) => {
+    try {
+        const userId = req.params.id;
+        await db.deleteUser(userId);
+        res.json({ message: 'User deleted successfully' });
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to delete user' });
+    }
 });
 
 // Admin Update Settings
-app.post('/api/admin/settings', verifyAdminToken, (req, res) => {
-    const { paymentUrl, supportContact, newPassword, googleClientId, downloadUrl } = req.body;
+app.post('/api/admin/settings', verifyAdminToken, async (req, res) => {
+    try {
+        const { paymentUrl, supportContact, newPassword, googleClientId, downloadUrl } = req.body;
 
-    if (paymentUrl !== undefined) {
-        db.prepare("UPDATE settings SET value = ? WHERE key = 'payment_url'").run(paymentUrl);
-    }
-    if (supportContact !== undefined) {
-        db.prepare("UPDATE settings SET value = ? WHERE key = 'support_contact'").run(supportContact);
-    }
-    if (googleClientId !== undefined) {
-        db.prepare("UPDATE settings SET value = ? WHERE key = 'google_client_id'").run(googleClientId.trim());
-    }
-    if (downloadUrl !== undefined) {
-        db.prepare("UPDATE settings SET value = ? WHERE key = 'download_url'").run(downloadUrl.trim());
-    }
-    if (newPassword && newPassword.trim().length >= 6) {
-        db.prepare("UPDATE settings SET value = ? WHERE key = 'admin_password'").run(newPassword.trim());
-    }
+        if (paymentUrl !== undefined) await db.setSetting('payment_url', paymentUrl);
+        if (supportContact !== undefined) await db.setSetting('support_contact', supportContact);
+        if (googleClientId !== undefined) await db.setSetting('google_client_id', googleClientId.trim());
+        if (downloadUrl !== undefined) await db.setSetting('download_url', downloadUrl.trim());
+        if (newPassword && newPassword.trim().length >= 6) await db.setSetting('admin_password', newPassword.trim());
 
-    res.json({ message: 'Settings updated successfully' });
+        res.json({ message: 'Settings updated successfully' });
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to update settings' });
+    }
 });
 
 // Global error handling middleware
