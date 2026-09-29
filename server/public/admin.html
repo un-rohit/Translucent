@@ -594,10 +594,6 @@
             </div>
         </div>
         <div class="nav-actions">
-            <select id="serverSelect" onchange="switchBackendServer(this.value)" style="background: #18181E; color: #00E676; border: 1px solid #33333F; padding: 6px 10px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; outline: none;">
-                <option value="">🟢 Local Server (Port 3000)</option>
-                <option value="https://translucent-livid.vercel.app">☁️ Vercel Cloud</option>
-            </select>
             <button class="btn btn-outline btn-sm" onclick="manualRefresh()">🔄 Refresh</button>
             <button class="btn btn-outline btn-sm" onclick="openSettingsModal()">⚙️ Settings</button>
             <button class="btn btn-outline btn-sm" onclick="handleLogout()">Logout</button>
@@ -773,17 +769,9 @@
         let currentFilter = 'all';
         let selectedUserId = null;
         let adminToken = localStorage.getItem('translucent_admin_token') || '';
-        let targetServer = localStorage.getItem('translucent_target_server') || '';
 
         function api(path) {
-            return (targetServer ? targetServer.replace(/\/$/, '') : '') + path;
-        }
-
-        function switchBackendServer(val) {
-            targetServer = val;
-            localStorage.setItem('translucent_target_server', targetServer);
-            showToast(`Switched backend: ${val ? '☁️ Vercel Cloud' : '🟢 Local Server'}`);
-            checkAuth();
+            return path;
         }
 
         function manualRefresh() {
@@ -792,11 +780,6 @@
         }
 
         window.addEventListener('DOMContentLoaded', () => {
-            const selectEl = document.getElementById('serverSelect');
-            if (selectEl && targetServer) {
-                selectEl.value = targetServer;
-            }
-
             if (adminToken) {
                 checkAuth();
             } else {

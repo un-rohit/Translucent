@@ -113,7 +113,6 @@ namespace InvisibleChat
 
                 if (response.StatusCode == HttpStatusCode.Unauthorized)
                 {
-                    // Token expired or invalidated
                     SignOut();
                     return false;
                 }
@@ -156,7 +155,6 @@ namespace InvisibleChat
             catch (Exception ex)
             {
                 Debug.WriteLine($"Failed to verify subscription status: {ex.Message}");
-                // Fallback to cached state on temporary network disconnection
                 IsSubscribed = Config.IsSubscribedCached;
                 Status = Config.SubscriptionStatus;
                 AuthStateChanged?.Invoke();
