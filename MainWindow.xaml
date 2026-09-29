@@ -948,7 +948,7 @@
 
                         <!-- Popup for Site Info / Permissions -->
                         <Popup x:Name="SiteInfoPopup" StaysOpen="False" Placement="Bottom" PlacementTarget="{Binding ElementName=SiteInfoBtn}" AllowsTransparency="True" PopupAnimation="Fade">
-                            <Border Background="#1C1C1F" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="14" Width="300">
+                            <Border Background="#1C1C1F" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="14" Width="320">
                                 <Border.Effect>
                                     <DropShadowEffect BlurRadius="15" Color="#000000" Opacity="0.5" ShadowDepth="3"/>
                                 </Border.Effect>
@@ -991,6 +991,53 @@
                                             </StackPanel>
                                             <Button Grid.Column="1" x:Name="PopupTabMuteBtn" Click="PopupTabMuteBtn_Click" Style="{StaticResource SecondaryButton}" Padding="8,3" FontSize="11" Height="22" Content="Mute Tab"/>
                                         </Grid>
+                                    </Border>
+
+                                    <!-- Website Sound Detection & System Audio Routing -->
+                                    <Border Background="#16231C" BorderBrush="#00E676" BorderThickness="1" CornerRadius="6" Padding="8,7" Margin="0,0,0,8">
+                                        <StackPanel>
+                                            <Grid Margin="0,0,0,5">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="🔊" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                    <TextBlock Text="System Sound Input (In Tab)" Foreground="#00E676" FontSize="11.5" FontWeight="Bold"/>
+                                                    <TextBlock Text="Feed PC/meeting audio into website" Foreground="#A0A0A5" FontSize="9"/>
+                                                </StackPanel>
+                                                <ToggleButton Grid.Column="2" x:Name="TabSystemSoundInputToggle" Style="{StaticResource ToggleSwitchStyle}"
+                                                              Checked="TabSystemSoundInputToggle_Changed" Unchecked="TabSystemSoundInputToggle_Changed"
+                                                              ToolTip="Allow website to capture system sound from anywhere for sound detection"/>
+                                            </Grid>
+
+                                            <!-- Source Selector for Website Sound Detection -->
+                                            <TextBlock Text="WEBSITE AUDIO INPUT (Sound Detection):" Foreground="#A0A0A5" FontSize="8.5" FontWeight="SemiBold" Margin="0,2,0,3"/>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <Button Grid.Column="0" x:Name="TabAudioSrcSystemBtn" Click="TabAudioSrcBtn_Click" Tag="system"
+                                                        Content="🔊 System" Padding="2,3" FontSize="9.5" Margin="0,0,2,0" Style="{StaticResource SecondaryButton}"
+                                                        ToolTip="Website hears system audio: meetings, other people, YouTube, calls"/>
+                                                <Button Grid.Column="1" x:Name="TabAudioSrcMicBtn" Click="TabAudioSrcBtn_Click" Tag="mic"
+                                                        Content="🎙️ Mic" Padding="2,3" FontSize="9.5" Margin="1,0,1,0" Style="{StaticResource SecondaryButton}"
+                                                        ToolTip="Website hears physical microphone: your voice"/>
+                                                <Button Grid.Column="2" x:Name="TabAudioSrcBothBtn" Click="TabAudioSrcBtn_Click" Tag="both"
+                                                        Content="🎛️ Both" Padding="2,3" FontSize="9.5" Margin="2,0,0,0" Style="{StaticResource SecondaryButton}"
+                                                        ToolTip="Website hears both system audio and microphone mixed together"/>
+                                            </Grid>
+
+                                            <!-- Live Status & Test Button -->
+                                            <TextBlock x:Name="TabAudioStatusText" Text="Status: 🔊 Feeding PC audio into website" Foreground="#8A8A8E" FontSize="8.5" Margin="0,5,0,2"/>
+                                            <Button x:Name="TabTestAudioDetectionBtn" Click="TabTestAudioDetectionBtn_Click"
+                                                    Content="⚡ Test Website Sound Detection" Padding="4,3" FontSize="9.5" Margin="0,2,0,0"
+                                                    Style="{StaticResource SecondaryButton}"
+                                                    ToolTip="Run live test to verify current website can detect system audio or microphone"/>
+                                        </StackPanel>
                                     </Border>
 
                                     <!-- Permissions List -->

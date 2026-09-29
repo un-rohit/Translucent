@@ -192,6 +192,11 @@ namespace InvisibleChat
                     webView.CoreWebView2.Settings.AreDevToolsEnabled = true;
                     webView.CoreWebView2.PermissionRequested += WebView_PermissionRequested;
 
+                    // Inject Translucent Virtual System Audio & Media Bridge
+                    await webView.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync(TabAudioBridgeScript);
+                    EnsureTabSystemAudioCapture();
+                    SendTabAudioConfig(newTab);
+
                     webView.CoreWebView2.IsDocumentPlayingAudioChanged += (s, ev) =>
                     {
                         Dispatcher.Invoke(() =>
@@ -237,6 +242,7 @@ namespace InvisibleChat
                                 string script = GetOpacityScript(vm.WindowOpacity);
                                 webView.CoreWebView2.ExecuteScriptAsync(script);
                             }
+                            SendTabAudioConfig(newTab);
                         });
                     };
 
@@ -326,6 +332,7 @@ namespace InvisibleChat
             if (_activeTab != null)
             {
                 UpdateBookmarksBarVisibility(_activeTab.Url);
+                SendTabAudioConfig(_activeTab);
             }
             SaveBrowserSession();
             await System.Threading.Tasks.Task.CompletedTask;
@@ -1116,9 +1123,14 @@ namespace InvisibleChat
                 MicrophonePermissionToggle.IsChecked = micAllowed;
                 CameraPermissionToggle.IsChecked = camAllowed;
                 SoundPermissionToggle.IsChecked = !isMuted;
+                if (TabSystemSoundInputToggle != null)
+                {
+                    TabSystemSoundInputToggle.IsChecked = _activeTab.IsSystemAudioInputAllowed;
+                }
                 _isSettingPermissions = false;
 
                 UpdatePopupTabAudioText(isMuted);
+                UpdateTabAudioSourceUiButtons();
 
                 SiteInfoPopup.IsOpen = true;
             }
@@ -1246,9 +1258,20 @@ namespace InvisibleChat
                 SoundPermissionToggle.IsChecked = true;
                 CameraPermissionToggle.IsChecked = true;
                 LocationPermissionToggle.IsChecked = true;
+                if (TabSystemSoundInputToggle != null)
+                {
+                    TabSystemSoundInputToggle.IsChecked = true;
+                }
                 _isSettingPermissions = false;
 
+                if (_activeTab != null)
+                {
+                    _activeTab.IsSystemAudioInputAllowed = true;
+                    SendTabAudioConfig(_activeTab);
+                }
+
                 UpdatePopupTabAudioText(false);
+                UpdateTabAudioSourceUiButtons();
             }
             catch {}
         }
@@ -1272,9 +1295,21 @@ namespace InvisibleChat
                 MicrophonePermissionToggle.IsChecked = true;
                 SoundPermissionToggle.IsChecked = true;
                 CameraPermissionToggle.IsChecked = true;
+                if (TabSystemSoundInputToggle != null)
+                {
+                    TabSystemSoundInputToggle.IsChecked = true;
+                }
                 _isSettingPermissions = false;
 
+                if (_activeTab != null)
+                {
+                    _activeTab.IsSystemAudioInputAllowed = true;
+                    _activeTab.TabAudioInputSource = "system";
+                    SendTabAudioConfig(_activeTab);
+                }
+
                 UpdatePopupTabAudioText(false);
+                UpdateTabAudioSourceUiButtons();
             }
             catch {}
         }
@@ -1294,6 +1329,522 @@ namespace InvisibleChat
             }
             catch {}
         }
+
+        // ─────────────────────────────────────────────────────────────────
+        // TAB SYSTEM SOUND & AUDIO ROUTING PERMISSIONS
+        // ─────────────────────────────────────────────────────────────────
+        private NAudio.Wave.WasapiLoopbackCapture? _tabLoopbackCapture;
+        private readonly object _tabAudioPcmLock = new();
+        private readonly System.Collections.Generic.List<byte> _tabAudioPcmBuffer = new();
+        private DateTime _lastTabAudioDispatch = DateTime.MinValue;
+
+        private void TabSystemSoundInputToggle_Changed(object sender, RoutedEventArgs e)
+        {
+            if (_isSettingPermissions || _activeTab == null) return;
+            _activeTab.IsSystemAudioInputAllowed = TabSystemSoundInputToggle.IsChecked == true;
+            SendTabAudioConfig(_activeTab);
+            UpdateTabAudioSourceUiButtons();
+        }
+
+        private void TabAudioSrcBtn_Click(object sender, RoutedEventArgs e)
+        {
+            if (_activeTab == null) return;
+            if (sender is System.Windows.Controls.Button btn && btn.Tag is string src)
+            {
+                _activeTab.TabAudioInputSource = src;
+                _activeTab.IsSystemAudioInputAllowed = true;
+                SendTabAudioConfig(_activeTab);
+                UpdateTabAudioSourceUiButtons();
+            }
+        }
+
+        private void UpdateTabAudioSourceUiButtons()
+        {
+            if (_activeTab == null) return;
+
+            string src = _activeTab.TabAudioInputSource; // "system", "mic", "both"
+            bool allowed = _activeTab.IsSystemAudioInputAllowed;
+
+            if (TabSystemSoundInputToggle != null)
+            {
+                _isSettingPermissions = true;
+                TabSystemSoundInputToggle.IsChecked = allowed;
+                _isSettingPermissions = false;
+            }
+
+            if (TabAudioSrcSystemBtn != null && TabAudioSrcMicBtn != null && TabAudioSrcBothBtn != null)
+            {
+                ResetTabAudioBtn(TabAudioSrcSystemBtn);
+                ResetTabAudioBtn(TabAudioSrcMicBtn);
+                ResetTabAudioBtn(TabAudioSrcBothBtn);
+
+                if (!allowed)
+                {
+                    if (TabAudioStatusText != null)
+                    {
+                        TabAudioStatusText.Text = "Status: ⚠️ Tab audio input disabled";
+                        TabAudioStatusText.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xFF, 0x52, 0x52));
+                    }
+                    return;
+                }
+
+                switch (src)
+                {
+                    case "mic":
+                        HighlightTabAudioBtn(TabAudioSrcMicBtn, System.Windows.Media.Color.FromArgb(0xFF, 0x2E, 0x25, 0x48), System.Windows.Media.Color.FromRgb(0xA8, 0x55, 0xF7));
+                        if (TabAudioStatusText != null)
+                        {
+                            TabAudioStatusText.Text = "Status: 🎙️ Feeding microphone into website";
+                            TabAudioStatusText.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xA8, 0x55, 0xF7));
+                        }
+                        break;
+                    case "both":
+                        HighlightTabAudioBtn(TabAudioSrcBothBtn, System.Windows.Media.Color.FromArgb(0xFF, 0x16, 0x28, 0x3A), System.Windows.Media.Color.FromRgb(0x00, 0xD2, 0xFF));
+                        if (TabAudioStatusText != null)
+                        {
+                            TabAudioStatusText.Text = "Status: 🎛️ Feeding mixed PC audio + mic into website";
+                            TabAudioStatusText.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x00, 0xD2, 0xFF));
+                        }
+                        break;
+                    case "system":
+                    default:
+                        HighlightTabAudioBtn(TabAudioSrcSystemBtn, System.Windows.Media.Color.FromArgb(0xFF, 0x1C, 0x30, 0x25), System.Windows.Media.Color.FromRgb(0x00, 0xE6, 0x76));
+                        if (TabAudioStatusText != null)
+                        {
+                            TabAudioStatusText.Text = "Status: 🔊 Feeding PC audio into website";
+                            TabAudioStatusText.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x00, 0xE6, 0x76));
+                        }
+                        break;
+                }
+            }
+        }
+
+        private void ResetTabAudioBtn(System.Windows.Controls.Button btn)
+        {
+            btn.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0xFF, 0x1E, 0x1E, 0x22));
+            btn.BorderBrush = System.Windows.Media.Brushes.Transparent;
+            btn.BorderThickness = new Thickness(1);
+            btn.FontWeight = FontWeights.Normal;
+        }
+
+        private void HighlightTabAudioBtn(System.Windows.Controls.Button btn, System.Windows.Media.Color bg, System.Windows.Media.Color border)
+        {
+            btn.Background = new System.Windows.Media.SolidColorBrush(bg);
+            btn.BorderBrush = new System.Windows.Media.SolidColorBrush(border);
+            btn.BorderThickness = new Thickness(1.2);
+            btn.FontWeight = FontWeights.Bold;
+        }
+
+        private void SendTabAudioConfig(BrowserTab? tab)
+        {
+            if (tab == null) return;
+            try
+            {
+                if (_webViews.TryGetValue(tab, out var wv) && wv.CoreWebView2 != null)
+                {
+                    string json = System.Text.Json.JsonSerializer.Serialize(new
+                    {
+                        type = "translucent_config",
+                        allowed = tab.IsSystemAudioInputAllowed,
+                        source = tab.TabAudioInputSource
+                    });
+                    wv.CoreWebView2.PostWebMessageAsJson(json);
+                }
+            }
+            catch { }
+        }
+
+        private void EnsureTabSystemAudioCapture()
+        {
+            try
+            {
+                if (_tabLoopbackCapture != null) return;
+
+                _tabLoopbackCapture = new NAudio.Wave.WasapiLoopbackCapture();
+                _tabLoopbackCapture.DataAvailable += TabLoopbackCapture_DataAvailable;
+                _tabLoopbackCapture.RecordingStopped += (s, e) =>
+                {
+                    _tabLoopbackCapture?.Dispose();
+                    _tabLoopbackCapture = null;
+                };
+                _tabLoopbackCapture.StartRecording();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Tab loopback capture init failed: {ex.Message}");
+            }
+        }
+
+        private void TabLoopbackCapture_DataAvailable(object? sender, NAudio.Wave.WaveInEventArgs e)
+        {
+            if (_activeTab == null || !_activeTab.IsSystemAudioInputAllowed || _activeTab.TabAudioInputSource == "mic")
+                return;
+
+            if (e.BytesRecorded <= 0 || _tabLoopbackCapture == null)
+                return;
+
+            try
+            {
+                byte[] pcm = ConvertTo16kHzMono16BitPcm(e.Buffer, 0, e.BytesRecorded, _tabLoopbackCapture.WaveFormat);
+                if (pcm.Length == 0) return;
+
+                lock (_tabAudioPcmLock)
+                {
+                    _tabAudioPcmBuffer.AddRange(pcm);
+                    var now = DateTime.UtcNow;
+                    if ((now - _lastTabAudioDispatch).TotalMilliseconds >= 60 || _tabAudioPcmBuffer.Count >= 1920)
+                    {
+                        byte[] chunk = _tabAudioPcmBuffer.ToArray();
+                        _tabAudioPcmBuffer.Clear();
+                        _lastTabAudioDispatch = now;
+
+                        var curTab = _activeTab;
+                        if (curTab != null && _webViews.TryGetValue(curTab, out var wv) && wv.CoreWebView2 != null)
+                        {
+                            string b64 = Convert.ToBase64String(chunk);
+                            string json = $"{{\"type\":\"translucent_tab_audio\",\"sampleRate\":16000,\"data\":\"{b64}\"}}";
+
+                            Dispatcher.BeginInvoke(() =>
+                            {
+                                try
+                                {
+                                    if (wv.CoreWebView2 != null && curTab == _activeTab)
+                                    {
+                                        wv.CoreWebView2.PostWebMessageAsJson(json);
+                                    }
+                                }
+                                catch { }
+                            }, System.Windows.Threading.DispatcherPriority.Background);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Tab loopback data error: {ex.Message}");
+            }
+        }
+
+        private static byte[] ConvertTo16kHzMono16BitPcm(byte[] buffer, int offset, int count, NAudio.Wave.WaveFormat format)
+        {
+            if (count <= 0 || format == null) return Array.Empty<byte>();
+
+            int bytesPerSample = format.BitsPerSample / 8;
+            int channels = format.Channels;
+            int bytesPerFrame = bytesPerSample * channels;
+            if (bytesPerFrame == 0) return Array.Empty<byte>();
+
+            int totalFrames = count / bytesPerFrame;
+            double ratio = (double)format.SampleRate / 16000.0;
+            double sourceFrameIndex = 0;
+
+            int estimatedOutSamples = (int)(totalFrames / ratio) + 2;
+            var outBytes = new System.Collections.Generic.List<byte>(estimatedOutSamples * 2);
+            bool isFloat = format.Encoding == NAudio.Wave.WaveFormatEncoding.IeeeFloat || format.BitsPerSample == 32;
+
+            while (sourceFrameIndex < totalFrames)
+            {
+                int frameInt = (int)Math.Floor(sourceFrameIndex);
+                if (frameInt >= totalFrames) break;
+
+                int frameByteOffset = offset + (frameInt * bytesPerFrame);
+                float sum = 0f;
+
+                for (int c = 0; c < channels; c++)
+                {
+                    int sampleByteOffset = frameByteOffset + (c * bytesPerSample);
+                    if (sampleByteOffset + bytesPerSample <= offset + count)
+                    {
+                        float sample = 0f;
+                        if (isFloat)
+                        {
+                            sample = BitConverter.ToSingle(buffer, sampleByteOffset);
+                        }
+                        else if (format.BitsPerSample == 16)
+                        {
+                            short val = BitConverter.ToInt16(buffer, sampleByteOffset);
+                            sample = val / 32768f;
+                        }
+                        else if (format.BitsPerSample == 32)
+                        {
+                            int val = BitConverter.ToInt32(buffer, sampleByteOffset);
+                            sample = val / 2147483648f;
+                        }
+                        sum += sample;
+                    }
+                }
+
+                float monoSample = channels > 0 ? (sum / channels) : sum;
+                if (monoSample > 1.0f) monoSample = 1.0f;
+                else if (monoSample < -1.0f) monoSample = -1.0f;
+
+                short pcm16 = (short)(monoSample * 32767.0f);
+                outBytes.Add((byte)(pcm16 & 0xFF));
+                outBytes.Add((byte)((pcm16 >> 8) & 0xFF));
+
+                sourceFrameIndex += ratio;
+            }
+
+            return outBytes.ToArray();
+        }
+
+        private async void TabTestAudioDetectionBtn_Click(object sender, RoutedEventArgs e)
+        {
+            if (_activeTab == null || !_webViews.TryGetValue(_activeTab, out var wv) || wv.CoreWebView2 == null)
+            {
+                System.Windows.MessageBox.Show("No active website loaded to test.", "Translucent Sound Detection", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                return;
+            }
+
+            if (TabAudioStatusText != null)
+            {
+                TabAudioStatusText.Text = "Status: ⏳ Listening for sound in website (1.2s)...";
+                TabAudioStatusText.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xFF, 0xD7, 0x00));
+            }
+
+            try
+            {
+                EnsureTabSystemAudioCapture();
+                SendTabAudioConfig(_activeTab);
+
+                string testJs = "if (window.__translucentTestSoundDetection) { await window.__translucentTestSoundDetection(); } else { JSON.stringify({ success: false, error: 'Bridge initializing...' }); }";
+                string resultJson = await wv.CoreWebView2.ExecuteScriptAsync(testJs);
+
+                string unescaped = resultJson;
+                if (unescaped.StartsWith("\"") && unescaped.EndsWith("\""))
+                {
+                    unescaped = System.Text.Json.JsonSerializer.Deserialize<string>(unescaped) ?? unescaped;
+                }
+
+                using var doc = System.Text.Json.JsonDocument.Parse(unescaped);
+                var root = doc.RootElement;
+                bool success = root.TryGetProperty("success", out var sProp) && sProp.GetBoolean();
+
+                if (success)
+                {
+                    string detail = root.TryGetProperty("detail", out var dProp) ? dProp.GetString() ?? "" : "";
+                    int level = root.TryGetProperty("level", out var lProp) ? lProp.GetInt32() : 0;
+                    string src = root.TryGetProperty("source", out var srcProp) ? srcProp.GetString() ?? "system" : "system";
+
+                    if (TabAudioStatusText != null)
+                    {
+                        TabAudioStatusText.Text = level > 0 ? $"Status: ✅ Sound Detected ({level}% level)" : "Status: ✅ Ready (Play sound to detect)";
+                        TabAudioStatusText.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x00, 0xE6, 0x76));
+                    }
+
+                    System.Windows.MessageBox.Show(
+                        $"Translucent Audio Detection Test Successful!\n\n" +
+                        $"• Active Source: {src.ToUpper()}\n" +
+                        $"• Peak Audio Level: {level}%\n" +
+                        $"• Detail: {detail}\n\n" +
+                        $"The website in this tab can successfully receive sound!",
+                        "Sound Detection Verified",
+                        System.Windows.MessageBoxButton.OK,
+                        System.Windows.MessageBoxImage.Information);
+                }
+                else
+                {
+                    string err = root.TryGetProperty("error", out var eProp) ? eProp.GetString() ?? "Unknown error" : "Unknown error";
+                    if (TabAudioStatusText != null)
+                    {
+                        TabAudioStatusText.Text = $"Status: ⚠️ {err}";
+                        TabAudioStatusText.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xFF, 0x52, 0x52));
+                    }
+                    System.Windows.MessageBox.Show($"Sound detection test failed: {err}\nMake sure microphone/audio permission is allowed for this site.", "Test Failed", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                }
+            }
+            catch (Exception ex)
+            {
+                if (TabAudioStatusText != null)
+                {
+                    TabAudioStatusText.Text = "Status: ⚠️ Error testing audio";
+                }
+                System.Windows.MessageBox.Show($"Audio test error: {ex.Message}", "Test Error", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+            }
+            finally
+            {
+                UpdateTabAudioSourceUiButtons();
+            }
+        }
+
+        private const string TabAudioBridgeScript = """
+            (function() {
+                if (window.__translucentAudioBridgeInitialized) return;
+                window.__translucentAudioBridgeInitialized = true;
+                window.__translucentAudioSource = "system";
+                window.__translucentAudioAllowed = true;
+
+                let audioCtx = null;
+                let destNode = null;
+                let nextPlayTime = 0;
+                let micStream = null;
+                let micSourceNode = null;
+
+                function getOrCreateAudioContext() {
+                    if (!audioCtx || audioCtx.state === 'closed') {
+                        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                        audioCtx = new AudioContextClass({ sampleRate: 16000 });
+                        destNode = audioCtx.createMediaStreamDestination();
+                        nextPlayTime = audioCtx.currentTime;
+                    }
+                    if (audioCtx.state === 'suspended') {
+                        audioCtx.resume().catch(() => {});
+                    }
+                    return { audioCtx, destNode };
+                }
+
+                if (window.chrome && window.chrome.webview) {
+                    window.chrome.webview.addEventListener('message', function(event) {
+                        try {
+                            const msg = event.data;
+                            if (!msg || typeof msg !== 'object') return;
+
+                            if (msg.type === 'translucent_config') {
+                                if (typeof msg.allowed === 'boolean') window.__translucentAudioAllowed = msg.allowed;
+                                if (msg.source) window.__translucentAudioSource = msg.source;
+                                return;
+                            }
+
+                            if (msg.type === 'translucent_tab_audio' && window.__translucentAudioAllowed && window.__translucentAudioSource !== 'mic') {
+                                const b64 = msg.data;
+                                if (!b64) return;
+
+                                const binStr = atob(b64);
+                                const len = binStr.length;
+                                const bytes = new Uint8Array(len);
+                                for (let i = 0; i < len; i++) {
+                                    bytes[i] = binStr.charCodeAt(i);
+                                }
+                                const int16 = new Int16Array(bytes.buffer);
+                                const numSamples = int16.length;
+                                if (numSamples === 0) return;
+
+                                const { audioCtx, destNode } = getOrCreateAudioContext();
+                                const float32 = new Float32Array(numSamples);
+                                for (let i = 0; i < numSamples; i++) {
+                                    float32[i] = int16[i] / 32768.0;
+                                }
+
+                                const buffer = audioCtx.createBuffer(1, numSamples, msg.sampleRate || 16000);
+                                buffer.copyToChannel(float32, 0);
+
+                                const srcNode = audioCtx.createBufferSource();
+                                srcNode.buffer = buffer;
+                                srcNode.connect(destNode);
+
+                                const now = audioCtx.currentTime;
+                                if (nextPlayTime < now) {
+                                    nextPlayTime = now + 0.005;
+                                }
+                                srcNode.start(nextPlayTime);
+                                nextPlayTime += buffer.duration;
+                            }
+                        } catch (err) {}
+                    });
+                }
+
+                if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                    const origGetUserMedia = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+                    window.__translucentOrigGetUserMedia = origGetUserMedia;
+
+                    navigator.mediaDevices.getUserMedia = async function(constraints) {
+                        if (!constraints || !constraints.audio || !window.__translucentAudioAllowed || window.__translucentAudioSource === 'mic') {
+                            return origGetUserMedia(constraints);
+                        }
+
+                        const { audioCtx, destNode } = getOrCreateAudioContext();
+
+                        if (window.__translucentAudioSource === 'both') {
+                            try {
+                                if (!micStream || !micStream.active) {
+                                    micStream = await origGetUserMedia(constraints);
+                                    micSourceNode = audioCtx.createMediaStreamSource(micStream);
+                                    micSourceNode.connect(destNode);
+                                }
+                            } catch (e) {
+                                console.warn('[Translucent] Mic mix error:', e);
+                            }
+                        }
+
+                        const stream = destNode.stream;
+                        stream.__isTranslucentSystemAudio = true;
+                        return stream;
+                    };
+                }
+
+                if (navigator.webkitGetUserMedia) {
+                    const origWebkitGUM = navigator.webkitGetUserMedia.bind(navigator);
+                    navigator.webkitGetUserMedia = function(constraints, success, error) {
+                        if (!constraints || !constraints.audio || !window.__translucentAudioAllowed || window.__translucentAudioSource === 'mic') {
+                            return origWebkitGUM(constraints, success, error);
+                        }
+                        navigator.mediaDevices.getUserMedia(constraints).then(success).catch(error);
+                    };
+                }
+
+                if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+                    const origEnumerate = navigator.mediaDevices.enumerateDevices.bind(navigator.mediaDevices);
+                    navigator.mediaDevices.enumerateDevices = async function() {
+                        const devices = await origEnumerate();
+                        const virtualDevices = [
+                            {
+                                deviceId: 'translucent-system-sound',
+                                kind: 'audioinput',
+                                label: 'Translucent System Sound (PC Loopback & Meetings)',
+                                groupId: 'translucent-audio'
+                            },
+                            {
+                                deviceId: 'translucent-mixed-audio',
+                                kind: 'audioinput',
+                                label: 'Translucent Mixed Audio (System + Microphone)',
+                                groupId: 'translucent-audio'
+                            }
+                        ];
+                        return [...virtualDevices, ...devices];
+                    };
+                }
+
+                window.__translucentTestSoundDetection = async function() {
+                    try {
+                        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                        const { audioCtx } = getOrCreateAudioContext();
+                        const testSrc = audioCtx.createMediaStreamSource(stream);
+                        const analyser = audioCtx.createAnalyser();
+                        analyser.fftSize = 256;
+                        testSrc.connect(analyser);
+
+                        const dataArray = new Uint8Array(analyser.frequencyBinCount);
+                        let maxVal = 0;
+                        const startTime = Date.now();
+
+                        return new Promise((resolve) => {
+                            const checkInterval = setInterval(() => {
+                                analyser.getByteFrequencyData(dataArray);
+                                for (let i = 0; i < dataArray.length; i++) {
+                                    if (dataArray[i] > maxVal) maxVal = dataArray[i];
+                                }
+                                if (Date.now() - startTime > 1200) {
+                                    clearInterval(checkInterval);
+                                    try { testSrc.disconnect(); } catch (e) {}
+                                    const volPct = Math.round((maxVal / 255) * 100);
+                                    resolve(JSON.stringify({
+                                        success: true,
+                                        source: window.__translucentAudioSource,
+                                        allowed: window.__translucentAudioAllowed,
+                                        level: volPct,
+                                        detail: volPct > 0 
+                                            ? ('Sound detected! Peak level: ' + volPct + '% (Website successfully receiving audio)')
+                                            : ('Audio pipeline connected and active (Source: ' + window.__translucentAudioSource + '). Play PC audio or speak to detect volume.')
+                                    }));
+                                }
+                            }, 40);
+                        });
+                    } catch (err) {
+                        return JSON.stringify({ success: false, error: err.message });
+                    }
+                };
+            })();
+            """;
 
         private void WebView_PermissionRequested(object? sender, Microsoft.Web.WebView2.Core.CoreWebView2PermissionRequestedEventArgs e)
         {
@@ -1829,6 +2380,10 @@ namespace InvisibleChat
             if (_notifyIcon != null) { _notifyIcon.Visible = false; _notifyIcon.Dispose(); }
             _hotkeyHelper?.Dispose();
 
+            try { _tabLoopbackCapture?.StopRecording(); } catch { }
+            _tabLoopbackCapture?.Dispose();
+            _tabLoopbackCapture = null;
+
             // Cleanup WebViews
             foreach (var webView in _webViews.Values)
             {
@@ -1843,6 +2398,11 @@ namespace InvisibleChat
         {
             if (_notifyIcon != null) { _notifyIcon.Visible = false; _notifyIcon.Dispose(); }
             _hotkeyHelper?.Dispose();
+
+            try { _tabLoopbackCapture?.StopRecording(); } catch { }
+            _tabLoopbackCapture?.Dispose();
+            _tabLoopbackCapture = null;
+
             base.OnClosed(e);
         }
 

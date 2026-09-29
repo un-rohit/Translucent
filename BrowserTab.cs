@@ -43,6 +43,20 @@ namespace InvisibleChat
             set { _isMuted = value; Notify(); }
         }
 
+        private bool _isSystemAudioInputAllowed = true;
+        public bool IsSystemAudioInputAllowed
+        {
+            get => _isSystemAudioInputAllowed;
+            set { _isSystemAudioInputAllowed = value; Notify(); }
+        }
+
+        private string _tabAudioInputSource = "system"; // "system", "mic", "both"
+        public string TabAudioInputSource
+        {
+            get => _tabAudioInputSource;
+            set { _tabAudioInputSource = value; Notify(); }
+        }
+
         public event PropertyChangedEventHandler? PropertyChanged;
         private void Notify([System.Runtime.CompilerServices.CallerMemberName] string? n = null)
             => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(n));
