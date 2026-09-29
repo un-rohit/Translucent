@@ -6,7 +6,13 @@ const fs = require('fs');
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY;
 
-const isSupabaseEnabled = Boolean(SUPABASE_URL && SUPABASE_KEY && SUPABASE_KEY.trim() !== '');
+const isSupabaseEnabled = Boolean(
+    SUPABASE_URL && 
+    SUPABASE_KEY && 
+    SUPABASE_KEY.trim() !== '' && 
+    !SUPABASE_KEY.startsWith('http') && 
+    SUPABASE_KEY.includes('.')
+);
 
 let supabase = null;
 let sqliteDb = null;

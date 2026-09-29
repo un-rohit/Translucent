@@ -6,7 +6,7 @@ const fs = require('fs');
 const { DatabaseSync } = require('node:sqlite');
 require('dotenv').config();
 
-// Translucent Pro Backend Server (Telegram Admin Connected: 8773643192)
+// Translucent Pro Backend Server (Active Database: SQLite / Ready for Supabase)
 const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'translucent_super_secure_jwt_secret_2026';
