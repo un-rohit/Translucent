@@ -255,6 +255,14 @@ async function approveUser(id, { durationDays = 30, plan = 'pro', notes = '' }) 
     }
 }
 
+async function setUserPendingNote(id, notes) {
+    if (isSupabaseEnabled) {
+        await supabase.from('users').update({ notes }).eq('id', id);
+    } else {
+        sqliteDb.prepare('UPDATE users SET notes = ? WHERE id = ?').run(notes, id);
+    }
+}
+
 async function revokeUser(id, reason = 'Revoked by admin') {
     if (isSupabaseEnabled) {
         const { data, error } = await supabase
@@ -301,6 +309,7 @@ module.exports = {
     getAllUsers,
     getStats,
     approveUser,
+    setUserPendingNote,
     revokeUser,
     deleteUser,
     sqliteDb,

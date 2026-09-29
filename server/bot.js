@@ -273,8 +273,8 @@ function initTelegramBot() {
             }
         });
 
-        // Admin Action: Approve License
-        bot.action(/approve_(\d+)_(\d+)_(pro|lifetime)_(\d+)/, async (ctx) => {
+        // Admin Action: Approve License (Handles both Telegram and Web submissions)
+        bot.action(/approve_(\d+)_(\d+)_(pro|lifetime)_([a-zA-Z0-9_-]+)/, async (ctx) => {
             const userId = ctx.match[1];
             const durationDays = parseInt(ctx.match[2], 10);
             const plan = ctx.match[3];
@@ -284,7 +284,7 @@ function initTelegramBot() {
                 const updatedUser = await db.approveUser(userId, {
                     durationDays,
                     plan,
-                    notes: `Paid & verified via Telegram Bot by admin`
+                    notes: `Paid ₹99 & verified by admin via Telegram`
                 });
 
                 await ctx.answerCbQuery('✓ License Activated!');
@@ -294,17 +294,19 @@ function initTelegramBot() {
                     ]).reply_markup
                 );
 
-                // Notify User
-                try {
-                    await ctx.telegram.sendMessage(
-                        userChatId,
-                        `🎉 *Payment Verified & License Activated!*\n\n` +
-                        `⚡ Your *Translucent Pro* software license has been successfully unlocked.\n\n` +
-                        `Return to the Translucent application on your PC and click *Check Status / Refresh* to begin using all stealth AI features!`,
-                        { parse_mode: 'Markdown' }
-                    );
-                } catch (e) {
-                    console.warn('[Telegram Bot] Failed to notify user in chat:', e.message);
+                // Notify User if they initiated from Telegram
+                if (userChatId && userChatId !== 'none' && userChatId !== 'web') {
+                    try {
+                        await ctx.telegram.sendMessage(
+                            userChatId,
+                            `🎉 *Payment Verified & License Activated!*\n\n` +
+                            `⚡ Your *Translucent Pro* software license has been successfully unlocked.\n\n` +
+                            `Return to the Translucent application on your PC and click *Check Status / Refresh* to begin using all stealth AI features!`,
+                            { parse_mode: 'Markdown' }
+                        );
+                    } catch (e) {
+                        console.warn('[Telegram Bot] Failed to notify user in chat:', e.message);
+                    }
                 }
             } catch (err) {
                 console.error('[Telegram Bot] Approval error:', err);
@@ -354,4 +356,34 @@ function initTelegramBot() {
     }
 }
 
-module.exports = { initTelegramBot };
+async function notifyAdminPayment({ user, utr, amount = '₹99', plan = 'lifetime', durationDays = 0 }) {
+    if (!bot) return false;
+    const adminChatId = process.env.TELEGRAM_ADMIN_CHAT_ID;
+    if (!adminChatId) return false;
+
+    try {
+        const uId = user ? user.id : 'N/A';
+        const msg = 
+            `🚨 *NEW PAYMENT / UTR SUBMISSION*\n\n` +
+            `👤 *User:* ${user ? user.name : 'Unknown'}\n` +
+            `📧 *Email:* \`${user ? user.email : 'N/A'}\`\n` +
+            `🆔 *User ID:* ${uId}\n` +
+            `💎 *Plan:* Lifetime Pro (${amount})\n` +
+            `📝 *UTR / Txn ID:* \`${utr}\``;
+
+        const approveBtnData = user ? `approve_${user.id}_${durationDays}_${plan}_web` : 'noop';
+
+        await bot.telegram.sendMessage(adminChatId, msg, {
+            parse_mode: 'Markdown',
+            ...Markup.inlineKeyboard([
+                [Markup.button.callback('✅ Approve Lifetime License', approveBtnData)]
+            ])
+        });
+        return true;
+    } catch (e) {
+        console.warn('[Telegram Bot] Failed to send payment alert to admin:', e.message);
+        return false;
+    }
+}
+
+module.exports = { initTelegramBot, notifyAdminPayment };

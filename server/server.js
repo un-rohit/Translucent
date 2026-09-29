@@ -6,6 +6,7 @@ const fs = require('fs');
 const { DatabaseSync } = require('node:sqlite');
 require('dotenv').config();
 
+// Translucent Pro Backend Server (Updated with Telegram Bot)
 const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'translucent_super_secure_jwt_secret_2026';
@@ -23,12 +24,17 @@ const DEFAULT_GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '845827182936-d
 // Ensure default settings exist & Start Telegram Bot
 (async () => {
     try {
-        await db.initSetting('payment_url', 'https://buy.stripe.com/example_or_contact_admin');
+        await db.initSetting('payment_url', '/pay.html');
+        const currPayUrl = await db.getSetting('payment_url');
+        if (!currPayUrl || currPayUrl.includes('example') || currPayUrl.includes('stripe.com')) {
+            await db.setSetting('payment_url', '/pay.html');
+        }
         await db.initSetting('support_contact', 'Telegram: @translucent_admin | Email: support@translucent.ai');
         await db.initSetting('admin_password', ADMIN_PASSWORD);
         await db.initSetting('google_client_id', DEFAULT_GOOGLE_CLIENT_ID);
         await db.initSetting('download_url', '/downloads/Translucent.exe');
         await db.initSetting('telegram_bot_username', process.env.TELEGRAM_BOT_USERNAME || '');
+        await db.initSetting('telegram_upi_id', process.env.TELEGRAM_UPI_ID || 'rohit.1604@superyes');
 
         // Launch Telegram Bot
         initTelegramBot();

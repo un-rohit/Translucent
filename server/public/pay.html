@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Purchase Translucent Pro License — ₹99 Lifetime</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-base: #0B0B0E;
+            --bg-surface: #121217;
+            --bg-card: #181820;
+            --primary: #8B5CF6;
+            --primary-gradient: linear-gradient(135deg, #8B5CF6 0%, #6366F1 100%);
+            --primary-glow: rgba(139, 92, 246, 0.35);
+            --border: #262630;
+            --border-highlight: #3A3A4C;
+            --text-main: #FFFFFF;
+            --text-secondary: #94A3B8;
+            --success: #10B981;
+            --success-glow: rgba(16, 185, 129, 0.2);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px 16px;
+            background-image: 
+                radial-gradient(circle at 50% 10%, rgba(139, 92, 246, 0.12) 0%, transparent 60%),
+                radial-gradient(circle at 80% 80%, rgba(99, 102, 241, 0.08) 0%, transparent 50%);
+        }
+
+        .pay-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-highlight);
+            border-radius: 24px;
+            padding: 36px 32px;
+            max-width: 460px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.8);
+            position: relative;
+        }
+
+        .logo-badge {
+            width: 54px;
+            height: 54px;
+            margin: 0 auto 16px auto;
+            border-radius: 16px;
+            background: var(--primary-gradient);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 26px;
+            box-shadow: 0 8px 24px var(--primary-glow);
+        }
+
+        h1 {
+            font-size: 22px;
+            font-weight: 800;
+            letter-spacing: -0.4px;
+            margin-bottom: 6px;
+        }
+
+        .plan-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(139, 92, 246, 0.15);
+            border: 1px solid rgba(139, 92, 246, 0.4);
+            color: #C4B5FD;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 700;
+            margin-bottom: 18px;
+        }
+
+        .user-account-box {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 10px 14px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 12.5px;
+            text-align: left;
+        }
+
+        .user-account-box .email {
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-main);
+            font-weight: 600;
+            word-break: break-all;
+        }
+
+        .user-account-box .label {
+            color: var(--text-secondary);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .qr-wrapper {
+            background: #FFFFFF;
+            border-radius: 20px;
+            padding: 16px;
+            display: inline-block;
+            margin: 0 auto 18px auto;
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+            border: 3px solid rgba(139, 92, 246, 0.5);
+        }
+
+        .qr-image {
+            width: 200px;
+            height: 200px;
+            display: block;
+            border-radius: 10px;
+            object-fit: contain;
+        }
+
+        .upi-box {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 12px 16px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .upi-details {
+            text-align: left;
+        }
+
+        .upi-details .upi-label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .upi-details .upi-id {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            font-weight: 700;
+            color: #00E676;
+        }
+
+        .btn-copy {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid var(--border-highlight);
+            color: var(--text-main);
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-copy:hover {
+            background: rgba(255, 255, 255, 0.16);
+            transform: translateY(-1px);
+        }
+
+        .action-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px 18px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.2s;
+            border: none;
+            width: 100%;
+        }
+
+        .btn-primary {
+            background: var(--primary-gradient);
+            color: #FFFFFF;
+            box-shadow: 0 4px 16px var(--primary-glow);
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px var(--primary-glow);
+        }
+
+        .btn-tg {
+            background: #229ED9;
+            color: white;
+            box-shadow: 0 4px 14px rgba(34, 158, 217, 0.3);
+        }
+        .btn-tg:hover {
+            background: #1e8dc2;
+            transform: translateY(-2px);
+        }
+
+        .proof-section {
+            border-top: 1px solid var(--border);
+            padding-top: 18px;
+            text-align: left;
+        }
+
+        .proof-section h3 {
+            font-size: 13px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: #E2E8F0;
+        }
+
+        .proof-section p {
+            font-size: 11.5px;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+            line-height: 1.5;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 8px;
+        }
+
+        .input-group input {
+            flex: 1;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 10px 14px;
+            color: white;
+            font-size: 13px;
+            font-family: 'JetBrains Mono', monospace;
+            outline: none;
+        }
+        .input-group input:focus {
+            border-color: var(--primary);
+        }
+
+        .btn-submit {
+            background: #00E676;
+            color: #000000;
+            font-weight: 700;
+            padding: 0 16px;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+        .btn-submit:hover {
+            background: #00c853;
+        }
+
+        .instructions {
+            font-size: 11.5px;
+            color: #64748B;
+            margin-top: 18px;
+            line-height: 1.5;
+        }
+
+        .status-alert {
+            display: none;
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid rgba(16, 185, 129, 0.4);
+            color: #34D399;
+            padding: 12px;
+            border-radius: 12px;
+            font-size: 12.5px;
+            font-weight: 600;
+            margin-top: 14px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="pay-card">
+        <div class="logo-badge">⚡</div>
+        <h1>Translucent Pro License</h1>
+        <div class="plan-pill">👑 Lifetime Access — ₹99 Only</div>
+
+        <!-- Account linking info -->
+        <div class="user-account-box" id="userBox" style="display: none;">
+            <div>
+                <div class="label">Licensing Account</div>
+                <div class="email" id="userEmailDisplay">user@gmail.com</div>
+            </div>
+            <span style="color: #FBBF24; font-weight: 700; font-size: 11px;">PENDING</span>
+        </div>
+
+        <!-- QR Code -->
+        <div class="qr-wrapper">
+            <img src="/qr_payment.png" alt="Scan to pay ₹99 via UPI" class="qr-image" onerror="this.src='https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=upi%3A%2F%2Fpay%3Fpa%3Drohit.1604%40superyes%26pn%3DTranslucent%2BPro%26am%3D99%26cu%3DINR'">
+        </div>
+
+        <!-- UPI ID Box -->
+        <div class="upi-box">
+            <div class="upi-details">
+                <div class="upi-label">UPI ID (GPay / PhonePe / Paytm / BHIM)</div>
+                <div class="upi-id" id="upiIdText">rohit.1604@superyes</div>
+            </div>
+            <button class="btn-copy" onclick="copyUpiId()" id="copyBtn">📋 Copy</button>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="action-buttons">
+            <a href="upi://pay?pa=rohit.1604@superyes&pn=TranslucentPro&am=99&cu=INR&tn=TranslucentProLifetime" class="btn btn-primary">
+                ⚡ Open in UPI App (Pay ₹99)
+            </a>
+            <a id="telegramBtn" href="#" class="btn btn-tg" style="display: none;">
+                ✈️ Pay &amp; Verify via Telegram Bot
+            </a>
+        </div>
+
+        <!-- Submit UTR Proof -->
+        <div class="proof-section">
+            <h3>Already Completed Payment?</h3>
+            <p>Enter your 12-digit UTR / Reference number below for immediate license activation:</p>
+            <div class="input-group">
+                <input type="text" id="utrInput" placeholder="Enter 12-digit UTR or Txn ID...">
+                <button class="btn-submit" onclick="submitUtr()">Verify</button>
+            </div>
+            <div class="status-alert" id="statusAlert"></div>
+        </div>
+
+        <div class="instructions">
+            Once verified, return to the Translucent application and click <strong>🔄 Check Status / Refresh</strong> to start using stealth AI!
+        </div>
+    </div>
+
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const email = params.get('email') || '';
+        const userId = params.get('userId') || '';
+
+        if (email) {
+            document.getElementById('userBox').style.display = 'flex';
+            document.getElementById('userEmailDisplay').innerText = email;
+        }
+
+        // Fetch config to setup Telegram bot button if configured
+        fetch('/api/public/config')
+            .then(res => res.json())
+            .then(cfg => {
+                if (cfg.telegramUpiId) {
+                    document.getElementById('upiIdText').innerText = cfg.telegramUpiId;
+                }
+                if (cfg.telegramBotUsername) {
+                    const tgBtn = document.getElementById('telegramBtn');
+                    let startPayload = userId ? `sub_${userId}` : (email ? `sub_${email.replace(/[@.]/g, '_')}` : '');
+                    tgBtn.href = `https://t.me/${cfg.telegramBotUsername}${startPayload ? `?start=${startPayload}` : ''}`;
+                    tgBtn.style.display = 'inline-flex';
+                }
+            })
+            .catch(() => {});
+
+        function copyUpiId() {
+            const upi = document.getElementById('upiIdText').innerText;
+            navigator.clipboard.writeText(upi).then(() => {
+                const btn = document.getElementById('copyBtn');
+                btn.innerText = '✓ Copied!';
+                btn.style.color = '#00E676';
+                setTimeout(() => {
+                    btn.innerText = '📋 Copy';
+                    btn.style.color = 'inherit';
+                }, 2000);
+            });
+        }
+
+        async function submitUtr() {
+            const utr = document.getElementById('utrInput').value.trim();
+            const alertBox = document.getElementById('statusAlert');
+            if (!utr) {
+                alert('Please enter your 12-digit UTR or Transaction ID.');
+                return;
+            }
+
+            alertBox.style.display = 'block';
+            alertBox.innerText = '⏳ Submitting payment details for verification...';
+
+            try {
+                const res = await fetch('/api/payment/submit-utr', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ utr, email, userId })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    alertBox.innerText = '✅ Payment submitted! Our admin is verifying your transaction. Click "Check Status / Refresh" in your Translucent app.';
+                    document.getElementById('utrInput').value = '';
+                } else {
+                    alertBox.innerText = data.error || 'Failed to submit payment details.';
+                }
+            } catch (e) {
+                alertBox.innerText = '✅ Payment submitted! Please click "Check Status / Refresh" in Translucent app in a few minutes.';
+            }
+        }
+    </script>
+</body>
+</html>

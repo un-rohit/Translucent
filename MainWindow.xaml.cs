@@ -608,7 +608,7 @@ namespace InvisibleChat
             try
             {
                 var auth = AuthManager.Instance;
-                string url = auth.PaymentUrl;
+                string url = "";
 
                 // If Telegram bot is configured, direct the user to the Telegram payment bot with deep link
                 if (!string.IsNullOrEmpty(auth.TelegramBotUsername))
@@ -617,6 +617,17 @@ namespace InvisibleChat
                         ? $"sub_{auth.UserId}" 
                         : $"sub_{auth.UserEmail.Replace("@", "_at_").Replace(".", "_")}";
                     url = $"https://t.me/{auth.TelegramBotUsername}?start={startPayload}";
+                }
+                else if (!string.IsNullOrEmpty(auth.PaymentUrl) && !auth.PaymentUrl.Contains("example") && !auth.PaymentUrl.Contains("stripe.com"))
+                {
+                    url = auth.PaymentUrl.StartsWith("http") 
+                        ? auth.PaymentUrl 
+                        : $"{auth.Config.AuthServerUrl.TrimEnd('/')}{auth.PaymentUrl}";
+                }
+                else
+                {
+                    string serverUrl = auth.Config.AuthServerUrl.TrimEnd('/');
+                    url = $"{serverUrl}/pay.html?userId={auth.UserId}&email={Uri.EscapeDataString(auth.UserEmail)}";
                 }
 
                 if (!string.IsNullOrEmpty(url))
