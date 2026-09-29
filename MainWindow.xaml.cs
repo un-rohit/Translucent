@@ -242,6 +242,7 @@ namespace InvisibleChat
                                 string script = GetOpacityScript(vm.WindowOpacity);
                                 webView.CoreWebView2.ExecuteScriptAsync(script);
                             }
+                            webView.CoreWebView2.ExecuteScriptAsync(TabAudioBridgeScript);
                             SendTabAudioConfig(newTab);
                         });
                     };
@@ -268,6 +269,8 @@ namespace InvisibleChat
                                 webView.CoreWebView2.ExecuteScriptAsync(script);
                             }
 
+                            webView.CoreWebView2.ExecuteScriptAsync(TabAudioBridgeScript);
+                            SendTabAudioConfig(newTab);
                             SaveBrowserSession();
                         });
                     };
@@ -1458,13 +1461,21 @@ namespace InvisibleChat
         {
             try
             {
-                if (_tabLoopbackCapture != null) return;
+                if (_tabLoopbackCapture != null && 
+                    _tabLoopbackCapture.CaptureState == NAudio.CoreAudioApi.CaptureState.Capturing)
+                {
+                    return;
+                }
+
+                try { _tabLoopbackCapture?.StopRecording(); } catch { }
+                _tabLoopbackCapture?.Dispose();
+                _tabLoopbackCapture = null;
 
                 _tabLoopbackCapture = new NAudio.Wave.WasapiLoopbackCapture();
                 _tabLoopbackCapture.DataAvailable += TabLoopbackCapture_DataAvailable;
                 _tabLoopbackCapture.RecordingStopped += (s, e) =>
                 {
-                    _tabLoopbackCapture?.Dispose();
+                    try { _tabLoopbackCapture?.Dispose(); } catch { }
                     _tabLoopbackCapture = null;
                 };
                 _tabLoopbackCapture.StartRecording();
@@ -1477,9 +1488,6 @@ namespace InvisibleChat
 
         private void TabLoopbackCapture_DataAvailable(object? sender, NAudio.Wave.WaveInEventArgs e)
         {
-            if (_activeTab == null || !_activeTab.IsSystemAudioInputAllowed || _activeTab.TabAudioInputSource == "mic")
-                return;
-
             if (e.BytesRecorded <= 0 || _tabLoopbackCapture == null)
                 return;
 
@@ -1492,30 +1500,30 @@ namespace InvisibleChat
                 {
                     _tabAudioPcmBuffer.AddRange(pcm);
                     var now = DateTime.UtcNow;
-                    if ((now - _lastTabAudioDispatch).TotalMilliseconds >= 60 || _tabAudioPcmBuffer.Count >= 1920)
+                    if ((now - _lastTabAudioDispatch).TotalMilliseconds >= 50 || _tabAudioPcmBuffer.Count >= 1600)
                     {
                         byte[] chunk = _tabAudioPcmBuffer.ToArray();
                         _tabAudioPcmBuffer.Clear();
                         _lastTabAudioDispatch = now;
 
-                        var curTab = _activeTab;
-                        if (curTab != null && _webViews.TryGetValue(curTab, out var wv) && wv.CoreWebView2 != null)
+                        // Safely dispatch to UI thread before touching _activeTab or WebView controls
+                        Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Normal, () =>
                         {
-                            string b64 = Convert.ToBase64String(chunk);
-                            string json = $"{{\"type\":\"translucent_tab_audio\",\"sampleRate\":16000,\"data\":\"{b64}\"}}";
-
-                            Dispatcher.BeginInvoke(() =>
+                            try
                             {
-                                try
+                                if (_activeTab != null && 
+                                    _activeTab.IsSystemAudioInputAllowed && 
+                                    _activeTab.TabAudioInputSource != "mic" &&
+                                    _webViews.TryGetValue(_activeTab, out var wv) && 
+                                    wv.CoreWebView2 != null)
                                 {
-                                    if (wv.CoreWebView2 != null && curTab == _activeTab)
-                                    {
-                                        wv.CoreWebView2.PostWebMessageAsJson(json);
-                                    }
+                                    string b64 = Convert.ToBase64String(chunk);
+                                    string json = $"{{\"type\":\"translucent_tab_audio\",\"sampleRate\":16000,\"data\":\"{b64}\"}}";
+                                    wv.CoreWebView2.PostWebMessageAsJson(json);
                                 }
-                                catch { }
-                            }, System.Windows.Threading.DispatcherPriority.Background);
-                        }
+                            }
+                            catch { }
+                        });
                     }
                 }
             }
@@ -1598,7 +1606,7 @@ namespace InvisibleChat
 
             if (TabAudioStatusText != null)
             {
-                TabAudioStatusText.Text = "Status: ⏳ Listening for sound in website (1.2s)...";
+                TabAudioStatusText.Text = "Status: ⏳ Listening for sound in website (1.5s)...";
                 TabAudioStatusText.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xFF, 0xD7, 0x00));
             }
 
@@ -1607,8 +1615,16 @@ namespace InvisibleChat
                 EnsureTabSystemAudioCapture();
                 SendTabAudioConfig(_activeTab);
 
-                string testJs = "if (window.__translucentTestSoundDetection) { await window.__translucentTestSoundDetection(); } else { JSON.stringify({ success: false, error: 'Bridge initializing...' }); }";
+                // Inject bridge script directly into existing document
+                await wv.CoreWebView2.ExecuteScriptAsync(TabAudioBridgeScript);
+
+                string testJs = "(async () => { if (window.__translucentTestSoundDetection) { return await window.__translucentTestSoundDetection(); } return JSON.stringify({ success: false, error: 'Bridge not initialized on page. Please refresh the tab.' }); })()";
                 string resultJson = await wv.CoreWebView2.ExecuteScriptAsync(testJs);
+
+                if (string.IsNullOrEmpty(resultJson) || resultJson == "null")
+                {
+                    throw new InvalidOperationException("Page returned no response. Make sure the website page is loaded and permissions are allowed.");
+                }
 
                 string unescaped = resultJson;
                 if (unescaped.StartsWith("\"") && unescaped.EndsWith("\""))
@@ -1618,8 +1634,12 @@ namespace InvisibleChat
 
                 using var doc = System.Text.Json.JsonDocument.Parse(unescaped);
                 var root = doc.RootElement;
-                bool success = root.TryGetProperty("success", out var sProp) && sProp.GetBoolean();
+                if (root.ValueKind != System.Text.Json.JsonValueKind.Object)
+                {
+                    throw new InvalidOperationException($"Invalid test response format: {unescaped}");
+                }
 
+                bool success = root.TryGetProperty("success", out var sProp) && sProp.GetBoolean();
                 if (success)
                 {
                     string detail = root.TryGetProperty("detail", out var dProp) ? dProp.GetString() ?? "" : "";
@@ -1628,16 +1648,16 @@ namespace InvisibleChat
 
                     if (TabAudioStatusText != null)
                     {
-                        TabAudioStatusText.Text = level > 0 ? $"Status: ✅ Sound Detected ({level}% level)" : "Status: ✅ Ready (Play sound to detect)";
+                        TabAudioStatusText.Text = level > 0 ? $"Status: ✅ Sound Detected ({level}% level)" : "Status: ✅ Ready (Play music/sound to detect)";
                         TabAudioStatusText.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x00, 0xE6, 0x76));
                     }
 
                     System.Windows.MessageBox.Show(
                         $"Translucent Audio Detection Test Successful!\n\n" +
-                        $"• Active Source: {src.ToUpper()}\n" +
-                        $"• Peak Audio Level: {level}%\n" +
-                        $"• Detail: {detail}\n\n" +
-                        $"The website in this tab can successfully receive sound!",
+                        $"• Input Source: {src.ToUpper()}\n" +
+                        $"• Peak Sound Level: {level}%\n" +
+                        $"• Status: {detail}\n\n" +
+                        $"The website in this tab can hear audio!",
                         "Sound Detection Verified",
                         System.Windows.MessageBoxButton.OK,
                         System.Windows.MessageBoxImage.Information);
@@ -1650,7 +1670,7 @@ namespace InvisibleChat
                         TabAudioStatusText.Text = $"Status: ⚠️ {err}";
                         TabAudioStatusText.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xFF, 0x52, 0x52));
                     }
-                    System.Windows.MessageBox.Show($"Sound detection test failed: {err}\nMake sure microphone/audio permission is allowed for this site.", "Test Failed", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                    System.Windows.MessageBox.Show($"Sound detection test failed:\n{err}\n\nPlease refresh the tab or check permissions.", "Sound Detection", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
                 }
             }
             catch (Exception ex)
@@ -1673,9 +1693,11 @@ namespace InvisibleChat
                 window.__translucentAudioBridgeInitialized = true;
                 window.__translucentAudioSource = "system";
                 window.__translucentAudioAllowed = true;
+                window.__translucentRecentMaxLevel = 0;
 
                 let audioCtx = null;
                 let destNode = null;
+                let silentGain = null;
                 let nextPlayTime = 0;
                 let micStream = null;
                 let micSourceNode = null;
@@ -1685,6 +1707,13 @@ namespace InvisibleChat
                         const AudioContextClass = window.AudioContext || window.webkitAudioContext;
                         audioCtx = new AudioContextClass({ sampleRate: 16000 });
                         destNode = audioCtx.createMediaStreamDestination();
+
+                        // Silent keep-alive gain connected to speakers so Chromium clock ticks continuously
+                        silentGain = audioCtx.createGain();
+                        silentGain.gain.value = 0.0;
+                        destNode.connect(silentGain);
+                        silentGain.connect(audioCtx.destination);
+
                         nextPlayTime = audioCtx.currentTime;
                     }
                     if (audioCtx.state === 'suspended') {
@@ -1696,7 +1725,10 @@ namespace InvisibleChat
                 if (window.chrome && window.chrome.webview) {
                     window.chrome.webview.addEventListener('message', function(event) {
                         try {
-                            const msg = event.data;
+                            let msg = event.data;
+                            if (typeof msg === 'string') {
+                                try { msg = JSON.parse(msg); } catch (e) {}
+                            }
                             if (!msg || typeof msg !== 'object') return;
 
                             if (msg.type === 'translucent_config') {
@@ -1711,19 +1743,32 @@ namespace InvisibleChat
 
                                 const binStr = atob(b64);
                                 const len = binStr.length;
+                                if (len < 2) return;
+
                                 const bytes = new Uint8Array(len);
                                 for (let i = 0; i < len; i++) {
                                     bytes[i] = binStr.charCodeAt(i);
                                 }
-                                const int16 = new Int16Array(bytes.buffer);
+                                const int16 = new Int16Array(bytes.buffer, 0, Math.floor(len / 2));
                                 const numSamples = int16.length;
                                 if (numSamples === 0) return;
 
                                 const { audioCtx, destNode } = getOrCreateAudioContext();
-                                const float32 = new Float32Array(numSamples);
-                                for (let i = 0; i < numSamples; i++) {
-                                    float32[i] = int16[i] / 32768.0;
+                                if (audioCtx.state === 'suspended') {
+                                    audioCtx.resume().catch(() => {});
                                 }
+
+                                const float32 = new Float32Array(numSamples);
+                                let chunkPeak = 0;
+                                for (let i = 0; i < numSamples; i++) {
+                                    const val = int16[i] / 32768.0;
+                                    float32[i] = val;
+                                    const abs = Math.abs(val);
+                                    if (abs > chunkPeak) chunkPeak = abs;
+                                }
+
+                                // Update live peak volume for sound detection
+                                window.__translucentRecentMaxLevel = Math.max(window.__translucentRecentMaxLevel * 0.8, chunkPeak);
 
                                 const buffer = audioCtx.createBuffer(1, numSamples, msg.sampleRate || 16000);
                                 buffer.copyToChannel(float32, 0);
@@ -1733,8 +1778,8 @@ namespace InvisibleChat
                                 srcNode.connect(destNode);
 
                                 const now = audioCtx.currentTime;
-                                if (nextPlayTime < now) {
-                                    nextPlayTime = now + 0.005;
+                                if (nextPlayTime < now || nextPlayTime > now + 0.12) {
+                                    nextPlayTime = now + 0.015;
                                 }
                                 srcNode.start(nextPlayTime);
                                 nextPlayTime += buffer.duration;
@@ -1806,39 +1851,68 @@ namespace InvisibleChat
 
                 window.__translucentTestSoundDetection = async function() {
                     try {
-                        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                        const { audioCtx } = getOrCreateAudioContext();
-                        const testSrc = audioCtx.createMediaStreamSource(stream);
-                        const analyser = audioCtx.createAnalyser();
-                        analyser.fftSize = 256;
-                        testSrc.connect(analyser);
+                        const source = window.__translucentAudioSource || 'system';
+                        const allowed = window.__translucentAudioAllowed !== false;
 
-                        const dataArray = new Uint8Array(analyser.frequencyBinCount);
+                        if (!allowed) {
+                            return JSON.stringify({ success: false, error: 'System Audio Input is disabled in Tab Permissions.' });
+                        }
+
                         let maxVal = 0;
                         const startTime = Date.now();
 
-                        return new Promise((resolve) => {
-                            const checkInterval = setInterval(() => {
-                                analyser.getByteFrequencyData(dataArray);
-                                for (let i = 0; i < dataArray.length; i++) {
-                                    if (dataArray[i] > maxVal) maxVal = dataArray[i];
-                                }
-                                if (Date.now() - startTime > 1200) {
-                                    clearInterval(checkInterval);
-                                    try { testSrc.disconnect(); } catch (e) {}
-                                    const volPct = Math.round((maxVal / 255) * 100);
-                                    resolve(JSON.stringify({
-                                        success: true,
-                                        source: window.__translucentAudioSource,
-                                        allowed: window.__translucentAudioAllowed,
-                                        level: volPct,
-                                        detail: volPct > 0 
-                                            ? ('Sound detected! Peak level: ' + volPct + '% (Website successfully receiving audio)')
-                                            : ('Audio pipeline connected and active (Source: ' + window.__translucentAudioSource + '). Play PC audio or speak to detect volume.')
-                                    }));
-                                }
-                            }, 40);
-                        });
+                        if (source === 'mic') {
+                            const origGUM = window.__translucentOrigGetUserMedia || (navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+                            const stream = await origGUM({ audio: true });
+                            const testCtx = new (window.AudioContext || window.webkitAudioContext)();
+                            const src = testCtx.createMediaStreamSource(stream);
+                            const analyser = testCtx.createAnalyser();
+                            analyser.fftSize = 256;
+                            src.connect(analyser);
+
+                            const data = new Uint8Array(analyser.frequencyBinCount);
+                            return new Promise((resolve) => {
+                                const interval = setInterval(() => {
+                                    analyser.getByteFrequencyData(data);
+                                    for (let i = 0; i < data.length; i++) {
+                                        if (data[i] > maxVal) maxVal = data[i];
+                                    }
+                                    if (Date.now() - startTime > 1200) {
+                                        clearInterval(interval);
+                                        try { stream.getTracks().forEach(t => t.stop()); } catch (e) {}
+                                        try { testCtx.close(); } catch (e) {}
+                                        const pct = Math.round((maxVal / 255) * 100);
+                                        resolve(JSON.stringify({
+                                            success: true,
+                                            source: 'mic',
+                                            level: pct,
+                                            detail: pct > 0 ? ('Microphone sound detected at ' + pct + '% level') : 'Microphone connected and ready (Speak to detect volume)'
+                                        }));
+                                    }
+                                }, 40);
+                            });
+                        } else {
+                            window.__translucentRecentMaxLevel = 0;
+                            return new Promise((resolve) => {
+                                const interval = setInterval(() => {
+                                    if (window.__translucentRecentMaxLevel > maxVal) {
+                                        maxVal = window.__translucentRecentMaxLevel;
+                                    }
+                                    if (Date.now() - startTime > 1200) {
+                                        clearInterval(interval);
+                                        const pct = Math.min(100, Math.round(maxVal * 100));
+                                        resolve(JSON.stringify({
+                                            success: true,
+                                            source: source,
+                                            level: pct,
+                                            detail: pct > 0 
+                                                ? ('System sound detected! Peak volume: ' + pct + '% (Website is receiving PC audio)') 
+                                                : ('System audio pipeline connected and active. (Play music/audio on your PC to detect volume)')
+                                        }));
+                                    }
+                                }, 40);
+                            });
+                        }
                     } catch (err) {
                         return JSON.stringify({ success: false, error: err.message });
                     }
