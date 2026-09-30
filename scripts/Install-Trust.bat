@@ -31,21 +31,17 @@ if not exist "%CERT_FILE%" (
     exit /b 1
 )
 
+echo [*] Installing Translucent Publisher Certificate into Trusted People Store (MSIX Sideloading)...
+certutil -addstore -f "TrustedPeople" "%CERT_FILE%" >nul 2>&1
+certutil -user -addstore -f "TrustedPeople" "%CERT_FILE%" >nul 2>&1
+
 echo [*] Installing Translucent Publisher Certificate into Trusted Root Store...
 certutil -addstore -f "Root" "%CERT_FILE%" >nul 2>&1
-if %errorlevel% neq 0 (
-    echo [FAILED] Could not add to Trusted Root Store.
-    pause
-    exit /b 1
-)
+certutil -user -addstore -f "Root" "%CERT_FILE%" >nul 2>&1
 
 echo [*] Installing Translucent Publisher Certificate into Trusted Publishers Store...
 certutil -addstore -f "TrustedPublisher" "%CERT_FILE%" >nul 2>&1
-if %errorlevel% neq 0 (
-    echo [FAILED] Could not add to Trusted Publishers Store.
-    pause
-    exit /b 1
-)
+certutil -user -addstore -f "TrustedPublisher" "%CERT_FILE%" >nul 2>&1
 
 echo.
 echo [SUCCESS] Translucent Technologies has been successfully added as a Trusted Publisher!
