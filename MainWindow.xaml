@@ -473,33 +473,33 @@
                                                     <Border Height="1" Background="#2A2A38" Margin="0,2,0,8"/>
                                                     <Grid Margin="0,2">
                                                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="70"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="70"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                        </Grid.ColumnDefinitions>
                                                         <TextBlock Text="💻 Device:" FontSize="11" Foreground="#94A3B8"/>
                                                         <TextBlock x:Name="MenuAccountDeviceName" Grid.Column="1" Text="ROHIT_MACHINE" FontSize="11" FontWeight="SemiBold" Foreground="#FFFFFF" TextTrimming="CharacterEllipsis"/>
                                                     </Grid>
                                                     <Grid Margin="0,2">
                                                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="70"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="70"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                        </Grid.ColumnDefinitions>
                                                         <TextBlock Text="🔑 Hardware:" FontSize="11" Foreground="#94A3B8"/>
                                                         <TextBlock x:Name="MenuAccountDeviceId" Grid.Column="1" Text="59fdcf409df63e1f" FontSize="10.5" FontFamily="Consolas, monospace" Foreground="#A78BFA" TextTrimming="CharacterEllipsis"/>
                                                     </Grid>
                                                     <Grid Margin="0,2">
                                                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="70"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="70"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                        </Grid.ColumnDefinitions>
                                                         <TextBlock Text="👑 Tier:" FontSize="11" Foreground="#94A3B8"/>
                                                         <TextBlock x:Name="MenuAccountPlan" Grid.Column="1" Text="Lifetime Pro" FontSize="11" FontWeight="SemiBold" Foreground="#34D399"/>
                                                     </Grid>
                                                     <Grid Margin="0,2">
                                                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="70"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="70"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                        </Grid.ColumnDefinitions>
                                                         <TextBlock Text="📅 Expiry:" FontSize="11" Foreground="#94A3B8"/>
                                                         <TextBlock x:Name="MenuAccountExpiry" Grid.Column="1" Text="Never (Lifetime Access)" FontSize="11" Foreground="#94A3B8"/>
                                                     </Grid>
