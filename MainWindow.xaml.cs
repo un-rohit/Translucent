@@ -883,11 +883,16 @@ namespace InvisibleChat
             }
         }
 
+        private bool _isPastingPrompt = false;
+
         private async System.Threading.Tasks.Task PasteClipboardImageThenPromptAsync(
             Microsoft.Web.WebView2.Wpf.WebView2 webView,
             string promptText,
             string feedbackTitle)
         {
+            if (_isPastingPrompt) return;
+            _isPastingPrompt = true;
+
             try
             {
                 // 1. Focus the WebView2 control
@@ -911,7 +916,7 @@ namespace InvisibleChat
                     await webView.CoreWebView2.ExecuteScriptAsync(focusInputScript);
                 }
 
-                await System.Threading.Tasks.Task.Delay(100);
+                await System.Threading.Tasks.Task.Delay(80);
 
                 // 2. Step 1: Paste Screenshot from Clipboard into Current Tab (Ctrl+V)
                 keybd_event(VK_CONTROL, 0, 0, UIntPtr.Zero);
@@ -920,79 +925,176 @@ namespace InvisibleChat
                 keybd_event(VK_CONTROL, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
 
                 // 3. Step 2: Wait for web app (ChatGPT, Claude, Gemini, etc.) to ingest the image upload
-                await System.Threading.Tasks.Task.Delay(750);
+                await System.Threading.Tasks.Task.Delay(600);
 
-                // 4. Step 3: Copy prompt text to clipboard
-                System.Windows.Clipboard.SetText(promptText);
+                // 4. Step 3: Insert prompt text directly via DOM without overwriting clipboard
+                string jsonPrompt = System.Text.Json.JsonSerializer.Serialize(promptText);
+                string insertScript = $@"(function() {{
+                    window.focus();
+                    let el = document.activeElement;
+                    if (!el || el === document.body || (el.tagName !== 'TEXTAREA' && el.tagName !== 'INPUT' && !el.isContentEditable)) {{
+                        el = document.querySelector('textarea, div[contenteditable=""true""], [role=""textbox""], #prompt-textarea, p[data-placeholder], input[type=""text""]');
+                        if (el) el.focus();
+                    }}
+                    if (!el) return false;
+                    const text = {jsonPrompt};
+                    try {{
+                        if (document.execCommand('insertText', false, text)) return true;
+                    }} catch (e) {{}}
+                    if (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') {{
+                        el.value = (el.value || '') + '\n' + text;
+                        el.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                        return true;
+                    }}
+                    return false;
+                }})();";
 
-                // 5. Refocus input element in webView
-                webView.Focus();
                 if (webView.CoreWebView2 != null)
                 {
-                    await webView.CoreWebView2.ExecuteScriptAsync(focusInputScript);
+                    await webView.CoreWebView2.ExecuteScriptAsync(insertScript);
                 }
 
-                await System.Threading.Tasks.Task.Delay(100);
-
-                // 6. Step 4: Paste Prompt text into web application (Ctrl+V)
-                keybd_event(VK_CONTROL, 0, 0, UIntPtr.Zero);
-                keybd_event(VK_V, 0, 0, UIntPtr.Zero);
-                keybd_event(VK_V, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
-                keybd_event(VK_CONTROL, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
-
-                // 7. Visual confirmation banner
+                // 5. Visual confirmation banner
                 ShowPromptPastedFeedback(feedbackTitle);
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Failed in PasteClipboardImageThenPromptAsync: {ex.Message}");
             }
+            finally
+            {
+                await System.Threading.Tasks.Task.Delay(400);
+                _isPastingPrompt = false;
+            }
         }
 
         private async System.Threading.Tasks.Task PastePromptIntoActiveTabAsync(string promptText, string promptTitle)
         {
             if (_activeTab == null || !_webViews.TryGetValue(_activeTab, out var webView)) return;
+            if (_isPastingPrompt) return; // Prevent double-triggering
 
+            _isPastingPrompt = true;
             try
             {
-                // 1. Copy the predefined prompt text to clipboard
-                System.Windows.Clipboard.SetText(promptText);
-
-                // 2. Focus the WebView2 control
                 webView.Focus();
 
-                // 3. Find and focus active or target input element inside WebView2
+                // Serialize prompt string safely for JavaScript injection
+                string jsonPrompt = System.Text.Json.JsonSerializer.Serialize(promptText);
+
+                // Try direct DOM insertion (preserves user clipboard, fires native input events, 1-time insertion only)
+                string directInsertScript = $@"(function() {{
+                    window.focus();
+                    let el = document.activeElement;
+                    if (!el || el === document.body || (el.tagName !== 'TEXTAREA' && el.tagName !== 'INPUT' && !el.isContentEditable)) {{
+                        el = document.querySelector('textarea, div[contenteditable=""true""], [role=""textbox""], #prompt-textarea, p[data-placeholder], input[type=""text""]');
+                        if (el) el.focus();
+                    }}
+                    if (!el) return false;
+
+                    const text = {jsonPrompt};
+
+                    // 1. Try execCommand('insertText') - works on ChatGPT, Claude, standard inputs, updates state properly
+                    try {{
+                        if (document.execCommand('insertText', false, text)) {{
+                            return true;
+                        }}
+                    }} catch (e) {{}}
+
+                    // 2. Fallback for textarea / text input
+                    if (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') {{
+                        const start = el.selectionStart || 0;
+                        const end = el.selectionEnd || 0;
+                        const val = el.value || '';
+                        el.value = val.substring(0, start) + text + val.substring(end);
+                        el.selectionStart = el.selectionEnd = start + text.length;
+                        el.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                        el.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                        return true;
+                    }}
+
+                    // 3. Fallback for contenteditable
+                    if (el.isContentEditable) {{
+                        const sel = window.getSelection();
+                        if (sel && sel.rangeCount > 0) {{
+                            const range = sel.getRangeAt(0);
+                            range.deleteContents();
+                            const textNode = document.createTextNode(text);
+                            range.insertNode(textNode);
+                            range.setStartAfter(textNode);
+                            range.setEndAfter(textNode);
+                            sel.removeAllRanges();
+                            sel.addRange(range);
+                        }} else {{
+                            el.innerText += text;
+                        }}
+                        el.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                        return true;
+                    }}
+
+                    return false;
+                }})();";
+
+                bool inserted = false;
                 if (webView.CoreWebView2 != null)
                 {
-                    string script = @"
-                        (function() {
-                            window.focus();
-                            let el = document.activeElement;
-                            if (!el || el === document.body || (el.tagName !== 'TEXTAREA' && el.tagName !== 'INPUT' && !el.isContentEditable)) {
-                                let candidate = document.querySelector('textarea, div[contenteditable=""true""], input[type=""text""], [role=""textbox""], p[data-placeholder]');
-                                if (candidate) {
-                                    candidate.focus();
-                                }
-                            }
-                        })();
-                    ";
-                    await webView.CoreWebView2.ExecuteScriptAsync(script);
+                    string res = await webView.CoreWebView2.ExecuteScriptAsync(directInsertScript);
+                    inserted = res == "true";
                 }
 
-                await System.Threading.Tasks.Task.Delay(80);
+                // If direct insertion didn't find an input element or wasn't supported, fallback to Ctrl+V but RESTORE previous clipboard!
+                if (!inserted)
+                {
+                    // Save previous clipboard text
+                    string? prevClipboardText = null;
+                    try
+                    {
+                        if (System.Windows.Clipboard.ContainsText())
+                        {
+                            prevClipboardText = System.Windows.Clipboard.GetText();
+                        }
+                    }
+                    catch { }
 
-                // 4. Simulate Ctrl+V to paste with full event dispatch in React/Vue/standard DOM
-                keybd_event(VK_CONTROL, 0, 0, UIntPtr.Zero);
-                keybd_event(VK_V, 0, 0, UIntPtr.Zero);
-                keybd_event(VK_V, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
-                keybd_event(VK_CONTROL, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                    try
+                    {
+                        System.Windows.Clipboard.SetText(promptText);
+                        await System.Threading.Tasks.Task.Delay(50);
 
-                // 5. Show visual banner feedback in bottom bar
+                        keybd_event(VK_CONTROL, 0, 0, UIntPtr.Zero);
+                        keybd_event(VK_V, 0, 0, UIntPtr.Zero);
+                        keybd_event(VK_V, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                        keybd_event(VK_CONTROL, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+
+                        // Wait for paste to complete, then restore previous clipboard immediately so prompt doesn't stay stuck!
+                        await System.Threading.Tasks.Task.Delay(150);
+                    }
+                    finally
+                    {
+                        try
+                        {
+                            if (!string.IsNullOrEmpty(prevClipboardText))
+                            {
+                                System.Windows.Clipboard.SetText(prevClipboardText);
+                            }
+                            else
+                            {
+                                System.Windows.Clipboard.Clear();
+                            }
+                        }
+                        catch { }
+                    }
+                }
+
                 ShowPromptPastedFeedback(promptTitle);
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Failed to paste prompt: {ex.Message}");
+            }
+            finally
+            {
+                await System.Threading.Tasks.Task.Delay(400);
+                _isPastingPrompt = false;
             }
         }
 
