@@ -3,6 +3,7 @@ const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const { DatabaseSync } = require('node:sqlite');
 require('dotenv').config();
 
@@ -60,12 +61,14 @@ app.get('/privacy', (req, res) => {
 // ─────────────────────────────────────────────────────────────────
 // Authentication Helpers
 // ─────────────────────────────────────────────────────────────────
-function generateUserToken(user) {
+function generateUserToken(user, sessionId, deviceId) {
     return jwt.sign(
         {
             userId: user.id,
             email: user.email,
-            status: user.status
+            status: user.status,
+            sessionId: sessionId || '',
+            deviceId: deviceId || ''
         },
         JWT_SECRET,
         { expiresIn: '30d' }
@@ -144,11 +147,16 @@ app.get('/api/download', async (req, res) => {
     res.redirect(downloadUrl);
 });
 
-// Helper: Upsert User & Generate Session Token
-async function upsertAndAuthenticateUser(email, name, avatarUrl, googleId) {
+// Helper: Upsert User & Generate Session Token (with Single-Device enforcement)
+async function upsertAndAuthenticateUser(email, name, avatarUrl, googleId, deviceId) {
     const user = await db.upsertUser({ email, name, avatarUrl, googleId });
     const isSubscribed = checkUserSubscriptionActive(user);
-    const token = generateUserToken(user);
+
+    // Generate new unique active session ID (invalidates any other active device)
+    const sessionId = crypto.randomUUID();
+    await db.setActiveDeviceSession(user.id, deviceId, sessionId);
+
+    const token = generateUserToken(user, sessionId, deviceId);
 
     return {
         token,
@@ -161,7 +169,8 @@ async function upsertAndAuthenticateUser(email, name, avatarUrl, googleId) {
             status: user.status,
             plan: user.plan,
             expiresAt: user.expires_at,
-            createdAt: user.created_at
+            createdAt: user.created_at,
+            deviceId: deviceId || ''
         }
     };
 }
@@ -170,7 +179,7 @@ async function upsertAndAuthenticateUser(email, name, avatarUrl, googleId) {
 // Exchanges authorization code for real Google profile (name, email, avatar)
 app.post('/api/auth/google/code', async (req, res) => {
     try {
-        const { code, redirectUri } = req.body;
+        const { code, redirectUri, deviceId } = req.body;
         if (!code) {
             return res.status(400).json({ error: 'Authorization code is required' });
         }
@@ -217,7 +226,8 @@ app.post('/api/auth/google/code', async (req, res) => {
             profile.email,
             profile.name || profile.email.split('@')[0],
             profile.picture || null,
-            profile.sub || null
+            profile.sub || null,
+            deviceId
         );
 
         res.json(authResult);
@@ -231,7 +241,7 @@ app.post('/api/auth/google/code', async (req, res) => {
 // Handles both official Google ID tokens & direct credential payloads
 app.post('/api/auth/google', async (req, res) => {
     try {
-        let { email, name, avatarUrl, googleId, credential } = req.body;
+        let { email, name, avatarUrl, googleId, credential, deviceId } = req.body;
 
         // If Google Identity Services ID token credential is provided, verify with Google
         if (credential) {
@@ -253,7 +263,7 @@ app.post('/api/auth/google', async (req, res) => {
             return res.status(400).json({ error: 'Email is required' });
         }
 
-        const authResult = await upsertAndAuthenticateUser(email, name, avatarUrl, googleId);
+        const authResult = await upsertAndAuthenticateUser(email, name, avatarUrl, googleId, deviceId);
         res.json(authResult);
     } catch (error) {
         console.error('Google Auth Error:', error);
@@ -267,6 +277,24 @@ app.get('/api/subscription/status', verifyUserToken, async (req, res) => {
         const user = await db.getUserById(req.user.userId);
         if (!user) {
             return res.status(404).json({ error: 'User not found' });
+        }
+
+        // Single Active Device Enforcement:
+        // If another device logged in after this token was generated, activeSession will have a newer sessionId or different deviceId
+        const activeSession = await db.getActiveDeviceSession(user.id);
+        if (activeSession) {
+            const tokenSessionId = req.user.sessionId;
+            const clientDeviceId = req.headers['x-device-id'] || req.query.deviceId;
+
+            const isSessionMismatched = tokenSessionId && activeSession.sessionId && tokenSessionId !== activeSession.sessionId;
+            const isDeviceMismatched = clientDeviceId && activeSession.deviceId && clientDeviceId !== activeSession.deviceId;
+
+            if (isSessionMismatched || isDeviceMismatched) {
+                return res.status(409).json({
+                    error: 'device_conflict',
+                    message: 'Your Translucent Pro account was signed in on another device. Only 1 active device is permitted at a time.'
+                });
+            }
         }
 
         // Auto-check expiration

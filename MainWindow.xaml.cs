@@ -608,6 +608,20 @@ namespace InvisibleChat
 
                 Title = "Translucent Pro — Security & Subscription Gate";
 
+                // Show device conflict banner if logged out due to multi-device conflict
+                if (GateDeviceConflictBanner != null)
+                {
+                    if (!string.IsNullOrEmpty(auth.LastSignOutReason))
+                    {
+                        GateDeviceConflictBanner.Visibility = Visibility.Visible;
+                        GateDeviceConflictText.Text = auth.LastSignOutReason;
+                    }
+                    else
+                    {
+                        GateDeviceConflictBanner.Visibility = Visibility.Collapsed;
+                    }
+                }
+
                 if (!auth.IsAuthenticated)
                 {
                     GateUnauthenticatedView.Visibility = Visibility.Visible;

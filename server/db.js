@@ -53,6 +53,10 @@ if (isSupabaseEnabled) {
             value TEXT NOT NULL
         );
     `);
+
+    // Ensure active device and session columns exist for single-device enforcement
+    try { sqliteDb.exec(`ALTER TABLE users ADD COLUMN active_device_id TEXT;`); } catch (_) {}
+    try { sqliteDb.exec(`ALTER TABLE users ADD COLUMN active_session_token TEXT;`); } catch (_) {}
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -303,6 +307,48 @@ async function deleteUser(id) {
     }
 }
 
+// ─────────────────────────────────────────────────────────────────
+// Single Active Device Session Enforcement
+// ─────────────────────────────────────────────────────────────────
+async function setActiveDeviceSession(userId, deviceId, sessionId) {
+    const now = new Date().toISOString();
+    const payload = JSON.stringify({ deviceId: deviceId || '', sessionId: sessionId || '', updatedAt: now });
+    await setSetting(`active_session_${userId}`, payload);
+
+    if (isSupabaseEnabled) {
+        try {
+            await supabase.from('users').update({ active_device_id: deviceId || null, active_session_token: sessionId || null }).eq('id', userId);
+        } catch (e) {
+            // Column may not exist on remote Supabase; universal settings table handles this seamlessly
+        }
+    } else {
+        try {
+            sqliteDb.prepare('UPDATE users SET active_device_id = ?, active_session_token = ? WHERE id = ?')
+                .run(deviceId || null, sessionId || null, userId);
+        } catch (e) {}
+    }
+}
+
+async function getActiveDeviceSession(userId) {
+    // 1. Check universal settings storage
+    const val = await getSetting(`active_session_${userId}`, null);
+    if (val) {
+        try {
+            return JSON.parse(val);
+        } catch (_) {}
+    }
+
+    // 2. Fallback to users table
+    const user = await getUserById(userId);
+    if (user && (user.active_device_id || user.active_session_token)) {
+        return {
+            deviceId: user.active_device_id || '',
+            sessionId: user.active_session_token || ''
+        };
+    }
+    return null;
+}
+
 module.exports = {
     isSupabaseEnabled,
     getSetting,
@@ -318,6 +364,8 @@ module.exports = {
     setUserPendingNote,
     revokeUser,
     deleteUser,
+    setActiveDeviceSession,
+    getActiveDeviceSession,
     sqliteDb,
     supabase
 };

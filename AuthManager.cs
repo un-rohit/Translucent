@@ -23,6 +23,8 @@ namespace InvisibleChat
 
         public bool IsAuthenticated => !string.IsNullOrEmpty(Config.AuthToken);
         public bool IsSubscribed { get; private set; } = false;
+        public string LastSignOutReason { get; private set; } = string.Empty;
+        private System.Threading.Timer? _heartbeatTimer;
         public string Status { get; private set; } = "unauthenticated"; // unauthenticated, pending, active, expired, suspended
         public string UserEmail { get; private set; } = string.Empty;
         public string UserName { get; private set; } = string.Empty;
@@ -93,12 +95,44 @@ namespace InvisibleChat
             }
         }
 
+        private void StartHeartbeat()
+        {
+            if (_heartbeatTimer == null)
+            {
+                _heartbeatTimer = new System.Threading.Timer(async _ =>
+                {
+                    if (IsSubscribed && !string.IsNullOrEmpty(Config.AuthToken))
+                    {
+                        try
+                        {
+                            await CheckSubscriptionStatusAsync();
+                        }
+                        catch {}
+                    }
+                }, null, TimeSpan.FromSeconds(15), TimeSpan.FromSeconds(15));
+            }
+        }
+
+        private void StopHeartbeat()
+        {
+            try
+            {
+                _heartbeatTimer?.Dispose();
+            }
+            catch {}
+            finally
+            {
+                _heartbeatTimer = null;
+            }
+        }
+
         public async Task<bool> CheckSubscriptionStatusAsync()
         {
             if (string.IsNullOrEmpty(Config.AuthToken))
             {
                 Status = "unauthenticated";
                 IsSubscribed = false;
+                StopHeartbeat();
                 AuthStateChanged?.Invoke();
                 return false;
             }
@@ -108,12 +142,29 @@ namespace InvisibleChat
                 string url = $"{Config.AuthServerUrl.TrimEnd('/')}/api/subscription/status";
                 using var request = new HttpRequestMessage(HttpMethod.Get, url);
                 request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", Config.AuthToken);
+                if (!string.IsNullOrEmpty(Config.DeviceId))
+                {
+                    request.Headers.Add("X-Device-Id", Config.DeviceId);
+                }
 
                 var response = await _httpClient.SendAsync(request);
 
-                if (response.StatusCode == HttpStatusCode.Unauthorized)
+                // Single-device conflict (409) or revoked session (401)
+                if (response.StatusCode == HttpStatusCode.Unauthorized || response.StatusCode == HttpStatusCode.Conflict)
                 {
-                    SignOut();
+                    string conflictMsg = "⚠️ Logged out: Your subscription was activated on another device. Only 1 active device is permitted at a time.";
+                    try
+                    {
+                        string errJson = await response.Content.ReadAsStringAsync();
+                        using var errDoc = JsonDocument.Parse(errJson);
+                        if (errDoc.RootElement.TryGetProperty("message", out var m))
+                        {
+                            conflictMsg = m.GetString() ?? conflictMsg;
+                        }
+                    }
+                    catch {}
+
+                    SignOut(conflictMsg);
                     return false;
                 }
 
@@ -148,6 +199,16 @@ namespace InvisibleChat
                     Config.UserAvatarUrl = UserAvatarUrl;
                     ConfigManager.Save(Config);
 
+                    if (IsSubscribed)
+                    {
+                        LastSignOutReason = string.Empty;
+                        StartHeartbeat();
+                    }
+                    else
+                    {
+                        StopHeartbeat();
+                    }
+
                     AuthStateChanged?.Invoke();
                     return IsSubscribed;
                 }
@@ -176,8 +237,8 @@ namespace InvisibleChat
                 _loopbackListener.Prefixes.Add($"http://127.0.0.1:{LoopbackPort}/callback/");
                 _loopbackListener.Start();
 
-                // Open default browser to the web login portal
-                string loginUrl = $"{Config.AuthServerUrl.TrimEnd('/')}/login.html?port={LoopbackPort}";
+                // Open default browser to the web login portal with deviceId
+                string loginUrl = $"{Config.AuthServerUrl.TrimEnd('/')}/login.html?port={LoopbackPort}&deviceId={Uri.EscapeDataString(Config.DeviceId)}";
                 Process.Start(new ProcessStartInfo
                 {
                     FileName = loginUrl,
@@ -278,8 +339,11 @@ namespace InvisibleChat
             }
         }
 
-        public void SignOut()
+        public void SignOut(string reason = "")
         {
+            StopHeartbeat();
+            LastSignOutReason = reason;
+
             Config.AuthToken = string.Empty;
             Config.UserEmail = string.Empty;
             Config.UserName = string.Empty;

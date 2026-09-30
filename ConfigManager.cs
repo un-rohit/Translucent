@@ -32,6 +32,7 @@ namespace InvisibleChat
         public string AuthServerUrl { get; set; } = "https://translucent-livid.vercel.app";
         public bool IsSubscribedCached { get; set; } = false;
         public string SubscriptionStatus { get; set; } = "pending";
+        public string DeviceId { get; set; } = string.Empty;
     }
 
     public static class ConfigManager
@@ -52,6 +53,11 @@ namespace InvisibleChat
                     var config = JsonSerializer.Deserialize<AppConfig>(json);
                     if (config != null)
                     {
+                        if (string.IsNullOrEmpty(config.DeviceId))
+                        {
+                            config.DeviceId = GenerateDeviceId();
+                            Save(config);
+                        }
                         return config;
                     }
                 }
@@ -60,7 +66,25 @@ namespace InvisibleChat
             {
                 System.Diagnostics.Debug.WriteLine($"Failed to load config: {ex.Message}");
             }
-            return new AppConfig();
+            var def = new AppConfig();
+            def.DeviceId = GenerateDeviceId();
+            Save(def);
+            return def;
+        }
+
+        private static string GenerateDeviceId()
+        {
+            try
+            {
+                string raw = $"{Environment.MachineName}_{Environment.UserName}_{Guid.NewGuid():N}";
+                using var sha = System.Security.Cryptography.SHA256.Create();
+                byte[] hash = sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes(raw));
+                return Convert.ToHexString(hash)[..16].ToLower();
+            }
+            catch
+            {
+                return Guid.NewGuid().ToString("N")[..16].ToLower();
+            }
         }
 
         public static void Save(AppConfig config)
