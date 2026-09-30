@@ -103,7 +103,19 @@ if (Test-Path $manifestPath) {
     exit 1
 }
 
-# 3. Pack MSIX package
+# 3. Generate resources.pri using makepri.exe
+$makepri = Join-Path $rootDir "packaging_tools\makepri.exe"
+if (Test-Path $makepri) {
+    Write-Host "`n[*] Generating Package Resource Index (resources.pri)..." -ForegroundColor Yellow
+    $priconfig = Join-Path $stagingDir "priconfig.xml"
+    $priOut = Join-Path $stagingDir "resources.pri"
+    & "$makepri" createconfig /cf "$priconfig" /dq en-US /o | Out-Null
+    & "$makepri" new /pr "$stagingDir" /cf "$priconfig" /of "$priOut" /o | Out-Null
+    Remove-Item "$priconfig" -Force -ErrorAction SilentlyContinue
+    Write-Host "[OK] resources.pri generated." -ForegroundColor Green
+}
+
+# 4. Pack MSIX package
 Write-Host "`n[*] Building MSIX package via makeappx.exe..." -ForegroundColor Yellow
 if (-not (Test-Path $makeappx)) {
     Write-Error "makeappx.exe not found at $makeappx"
@@ -111,6 +123,14 @@ if (-not (Test-Path $makeappx)) {
 }
 
 & "$makeappx" pack /d "$stagingDir" /p "$outputMsix" /o
+
+# 5. Sign MSIX with code signing certificate
+$signScript = Join-Path $rootDir "packaging_tools\Sign-Translucent.ps1"
+if (Test-Path $signScript) {
+    Write-Host "`n[*] Signing MSIX package..." -ForegroundColor Yellow
+    & powershell -ExecutionPolicy Bypass -File "$signScript" -TargetPath "$outputMsix" | Out-Null
+    Write-Host "[OK] Translucent.msix signed." -ForegroundColor Green
+}
 
 if ($LASTEXITCODE -eq 0) {
     $sizeMB = [math]::Round((Get-Item $outputMsix).Length / 1MB, 2)
