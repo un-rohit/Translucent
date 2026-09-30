@@ -35,7 +35,7 @@ param(
     [string]$Publisher = "",
     [string]$PublisherDisplayName = "",
     [string]$Version = "",
-    [switch]$Rebuild
+    [switch]$NoRebuild
 )
 
 $rootDir = Split-Path -Parent $PSScriptRoot
@@ -48,8 +48,8 @@ Write-Host "============================================================" -Foreg
 Write-Host "       Translucent - Microsoft Store Packaging Tool         " -ForegroundColor Cyan
 Write-Host "============================================================" -ForegroundColor Cyan
 
-# 1. Optionally rebuild dotnet project
-if ($Rebuild) {
+# 1. Rebuild dotnet project (default unless -NoRebuild is passed)
+if (-not $NoRebuild) {
     Write-Host "`n[*] Rebuilding Release binary..." -ForegroundColor Yellow
     $publishOut = Join-Path $rootDir "publish"
     $userDotnet = "$env:USERPROFILE\.dotnet\dotnet.exe"
