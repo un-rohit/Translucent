@@ -80,25 +80,28 @@ namespace InvisibleChat
                 Dispatcher.Invoke(UpdateSubscriptionGateUI);
             });
 
-            // 1. Immediately apply saved layout mode so UI renders cleanly on first frame
-            if (config.IsSplitView && DataContext is MainViewModel vm)
+            // 1. Immediately apply saved layout mode so UI renders cleanly on first frame (only if subscribed)
+            if (AuthManager.Instance.IsSubscribed)
             {
-                vm.IsSplitView = true;
-                ApplyLayoutMode(true);
-            }
-            else if (!config.IsChatTabActive)
-            {
-                _isChatTabActive = false;
-                _chatWidth = Width;
-                _chatHeight = Height;
-                Width = _browserWidth;
-                Height = _browserHeight;
-                ApplyLayoutMode(false);
-            }
-            else
-            {
-                _isChatTabActive = true;
-                ApplyLayoutMode(false);
+                if (config.IsSplitView && DataContext is MainViewModel vm)
+                {
+                    vm.IsSplitView = true;
+                    ApplyLayoutMode(true);
+                }
+                else if (!config.IsChatTabActive)
+                {
+                    _isChatTabActive = false;
+                    _chatWidth = Width;
+                    _chatHeight = Height;
+                    Width = _browserWidth;
+                    Height = _browserHeight;
+                    ApplyLayoutMode(false);
+                }
+                else
+                {
+                    _isChatTabActive = true;
+                    ApplyLayoutMode(false);
+                }
             }
 
             // 2. Restore tabs in background
@@ -312,22 +315,32 @@ namespace InvisibleChat
             _activeTab.IsActive = true;
             BrowserTabsList.SelectedItem = _activeTab;
 
-            // Show active WebView
+            // Show active WebView only if subscribed and browser view is active
             if (_webViews.ContainsKey(_activeTab))
             {
                 var activeWebView = _webViews[_activeTab];
-                activeWebView.Visibility = Visibility.Visible;
+                if (AuthManager.Instance.IsSubscribed && (!_isChatTabActive || (DataContext is MainViewModel vm && vm.IsSplitView)))
+                {
+                    activeWebView.Visibility = Visibility.Visible;
+                }
+                else
+                {
+                    activeWebView.Visibility = Visibility.Collapsed;
+                }
                 
                 // Update address bar
                 BrowserUrlBar.Text = _activeTab.Url;
                 
-                if (activeWebView.CoreWebView2 != null)
+                if (AuthManager.Instance.IsSubscribed)
                 {
-                    Title = $"Browser — {activeWebView.CoreWebView2.DocumentTitle}";
-                }
-                else
-                {
-                    Title = "Browser — Loading...";
+                    if (activeWebView.CoreWebView2 != null)
+                    {
+                        Title = $"Browser — {activeWebView.CoreWebView2.DocumentTitle}";
+                    }
+                    else
+                    {
+                        Title = "Browser — Loading...";
+                    }
                 }
             }
 
@@ -550,15 +563,50 @@ namespace InvisibleChat
             {
                 // App is unlocked
                 SubscriptionGateOverlay.Visibility = Visibility.Collapsed;
+                if (AppTitleBar != null) AppTitleBar.Visibility = Visibility.Visible;
+                if (AppContentArea != null) AppContentArea.Visibility = Visibility.Visible;
+                if (BrowserTabsContainer != null) BrowserTabsContainer.Visibility = Visibility.Visible;
                 ProAccountBtn.Visibility = Visibility.Visible;
                 MenuAccountEmail.Header = string.IsNullOrEmpty(auth.UserEmail) ? "Pro User" : auth.UserEmail;
                 MenuAccountPlan.Header = $"Plan: {auth.Plan.ToUpper()}";
+
+                if (DataContext is MainViewModel vm && vm.IsSplitView)
+                {
+                    ApplyLayoutMode(true);
+                }
+                else
+                {
+                    ApplyLayoutMode(false);
+                }
+
+                if ((!_isChatTabActive || (DataContext is MainViewModel vm2 && vm2.IsSplitView)) &&
+                    _activeTab != null && _webViews.TryGetValue(_activeTab, out var activeWv))
+                {
+                    activeWv.Visibility = Visibility.Visible;
+                }
             }
             else
             {
                 // App is locked by Subscription Gate
                 SubscriptionGateOverlay.Visibility = Visibility.Visible;
                 ProAccountBtn.Visibility = Visibility.Collapsed;
+
+                // CRITICAL AIRSPACE FIX:
+                // Hide main title bar, content area, and all native Win32 WebView2 HWNDs immediately
+                // so no website or tab can EVER render on top of or hijack the login screen!
+                if (AppTitleBar != null) AppTitleBar.Visibility = Visibility.Collapsed;
+                if (AppContentArea != null) AppContentArea.Visibility = Visibility.Collapsed;
+                if (BrowserTabsContainer != null) BrowserTabsContainer.Visibility = Visibility.Collapsed;
+                if (BrowserPanel != null) BrowserPanel.Visibility = Visibility.Collapsed;
+                if (ChatPanel != null) ChatPanel.Visibility = Visibility.Collapsed;
+                if (TitleTabsPanel != null) TitleTabsPanel.Visibility = Visibility.Collapsed;
+
+                foreach (var wv in _webViews.Values)
+                {
+                    wv.Visibility = Visibility.Collapsed;
+                }
+
+                Title = "Translucent Pro — Security & Subscription Gate";
 
                 if (!auth.IsAuthenticated)
                 {
@@ -668,6 +716,7 @@ namespace InvisibleChat
         private void GateSignOutBtn_Click(object sender, RoutedEventArgs e)
         {
             AuthManager.Instance.SignOut();
+            UpdateSubscriptionGateUI();
         }
 
         private void ProAccountBtn_Click(object sender, RoutedEventArgs e)
@@ -2241,6 +2290,18 @@ namespace InvisibleChat
 
         private void ApplyLayoutMode(bool isSplit)
         {
+            if (!AuthManager.Instance.IsSubscribed)
+            {
+                if (AppTitleBar != null) AppTitleBar.Visibility = Visibility.Collapsed;
+                if (AppContentArea != null) AppContentArea.Visibility = Visibility.Collapsed;
+                if (BrowserPanel != null) BrowserPanel.Visibility = Visibility.Collapsed;
+                if (ChatPanel != null) ChatPanel.Visibility = Visibility.Collapsed;
+                if (BrowserTabsContainer != null) BrowserTabsContainer.Visibility = Visibility.Collapsed;
+                if (TitleTabsPanel != null) TitleTabsPanel.Visibility = Visibility.Collapsed;
+                Title = "Translucent Pro — Security & Subscription Gate";
+                return;
+            }
+
             if (isSplit)
             {
                 _chatWidth = Width;
