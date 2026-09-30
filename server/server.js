@@ -286,10 +286,15 @@ app.get('/api/subscription/status', verifyUserToken, async (req, res) => {
             const tokenSessionId = req.user.sessionId;
             const clientDeviceId = req.headers['x-device-id'] || req.query.deviceId;
 
-            const isSessionMismatched = tokenSessionId && activeSession.sessionId && tokenSessionId !== activeSession.sessionId;
-            const isDeviceMismatched = clientDeviceId && activeSession.deviceId && clientDeviceId !== activeSession.deviceId;
+            // Session ID mismatch means this token belongs to an older session replaced by a newer login
+            if (tokenSessionId && activeSession.sessionId && tokenSessionId !== activeSession.sessionId) {
+                return res.status(409).json({
+                    error: 'device_conflict',
+                    message: 'Your Translucent Pro account was signed in on another device. Only 1 active device is permitted at a time.'
+                });
+            }
 
-            if (isSessionMismatched || isDeviceMismatched) {
+            if (clientDeviceId && activeSession.deviceId && clientDeviceId !== activeSession.deviceId) {
                 return res.status(409).json({
                     error: 'device_conflict',
                     message: 'Your Translucent Pro account was signed in on another device. Only 1 active device is permitted at a time.'

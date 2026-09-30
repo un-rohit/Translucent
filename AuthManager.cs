@@ -250,62 +250,67 @@ namespace InvisibleChat
                 {
                     try
                     {
-                        var context = await _loopbackListener.GetContextAsync();
-                        var req = context.Request;
-                        var res = context.Response;
-
-                        res.AddHeader("Access-Control-Allow-Origin", "*");
-                        res.AddHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-                        res.AddHeader("Access-Control-Allow-Headers", "*");
-
-                        if (req.HttpMethod == "OPTIONS")
+                        while (_loopbackListener != null && _loopbackListener.IsListening)
                         {
-                            res.StatusCode = 200;
-                            res.Close();
-                            return;
-                        }
+                            var context = await _loopbackListener.GetContextAsync();
+                            var req = context.Request;
+                            var res = context.Response;
 
-                        string? token = req.QueryString["token"];
-                        string? email = req.QueryString["email"];
-                        string? name = req.QueryString["name"];
-                        string? status = req.QueryString["status"];
+                            res.AddHeader("Access-Control-Allow-Origin", "*");
+                            res.AddHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+                            res.AddHeader("Access-Control-Allow-Headers", "*");
+                            res.AddHeader("Access-Control-Allow-Private-Network", "true");
 
-                        // Send friendly HTML response to browser
-                        string html = @"
-                            <!DOCTYPE html>
-                            <html>
-                            <head><meta charset='utf-8'><title>Linked to Translucent</title></head>
-                            <body style='background:#0F0F12;color:white;font-family:Segoe UI,sans-serif;text-align:center;padding-top:60px;'>
-                                <div style='display:inline-block;padding:24px 36px;border-radius:16px;background:#18181E;border:1px solid #333;'>
-                                    <h2 style='color:#00E676;margin-bottom:8px;'>✓ Successfully Connected!</h2>
-                                    <p style='color:#9E9EA4;margin:0;'>Your Google Account is linked to Translucent. You can close this tab and return to the app.</p>
-                                </div>
-                                <script>setTimeout(() => window.close(), 2500);</script>
-                            </body>
-                            </html>";
+                            if (req.HttpMethod == "OPTIONS")
+                            {
+                                res.StatusCode = 200;
+                                res.Close();
+                                continue;
+                            }
 
-                        byte[] buffer = Encoding.UTF8.GetBytes(html);
-                        res.ContentType = "text/html; charset=utf-8";
-                        res.ContentLength64 = buffer.Length;
-                        await res.OutputStream.WriteAsync(buffer, 0, buffer.Length);
-                        res.OutputStream.Close();
+                            string? token = req.QueryString["token"];
+                            string? email = req.QueryString["email"];
+                            string? name = req.QueryString["name"];
+                            string? status = req.QueryString["status"];
 
-                        StopLoopbackListener();
+                            // Send friendly HTML response to browser
+                            string html = @"
+                                <!DOCTYPE html>
+                                <html>
+                                <head><meta charset='utf-8'><title>Linked to Translucent</title></head>
+                                <body style='background:#0F0F12;color:white;font-family:Segoe UI,sans-serif;text-align:center;padding-top:60px;'>
+                                    <div style='display:inline-block;padding:24px 36px;border-radius:16px;background:#18181E;border:1px solid #333;'>
+                                        <h2 style='color:#00E676;margin-bottom:8px;'>✓ Successfully Connected!</h2>
+                                        <p style='color:#9E9EA4;margin:0;'>Your Google Account is linked to Translucent. You can close this tab and return to the app.</p>
+                                    </div>
+                                    <script>setTimeout(() => window.close(), 1500);</script>
+                                </body>
+                                </html>";
 
-                        if (!string.IsNullOrEmpty(token))
-                        {
-                            Config.AuthToken = token;
-                            Config.UserEmail = email ?? string.Empty;
-                            Config.UserName = name ?? string.Empty;
-                            Config.SubscriptionStatus = status ?? "pending";
-                            ConfigManager.Save(Config);
+                            byte[] buffer = Encoding.UTF8.GetBytes(html);
+                            res.ContentType = "text/html; charset=utf-8";
+                            res.ContentLength64 = buffer.Length;
+                            await res.OutputStream.WriteAsync(buffer, 0, buffer.Length);
+                            res.OutputStream.Close();
 
-                            UserEmail = Config.UserEmail;
-                            UserName = Config.UserName;
-                            Status = Config.SubscriptionStatus;
+                            if (!string.IsNullOrEmpty(token))
+                            {
+                                Config.AuthToken = token;
+                                Config.UserEmail = email ?? string.Empty;
+                                Config.UserName = name ?? string.Empty;
+                                Config.SubscriptionStatus = status ?? "pending";
+                                ConfigManager.Save(Config);
 
-                            // Immediately query backend for full profile & subscription status
-                            await CheckSubscriptionStatusAsync();
+                                UserEmail = Config.UserEmail;
+                                UserName = Config.UserName;
+                                Status = Config.SubscriptionStatus;
+
+                                StopLoopbackListener();
+
+                                // Immediately query backend for full profile & subscription status
+                                await CheckSubscriptionStatusAsync();
+                                break;
+                            }
                         }
                     }
                     catch (Exception ex)

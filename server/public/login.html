@@ -449,10 +449,13 @@
             const callbackUrl = `http://127.0.0.1:${desktopPort}/callback/?token=${encodeURIComponent(data.token)}&email=${encodeURIComponent(data.user.email)}&name=${encodeURIComponent(data.user.name)}&status=${encodeURIComponent(data.user.status)}&deviceId=${encodeURIComponent(deviceId)}`;
 
             try {
-                await fetch(callbackUrl, { mode: 'no-cors' });
-            } catch (e) {
-                console.log('Loopback ping sent to desktop app');
-            }
+                fetch(callbackUrl, { mode: 'no-cors' }).catch(() => {});
+            } catch (e) {}
+
+            try {
+                const img = new Image();
+                img.src = callbackUrl;
+            } catch (e) {}
 
             // 2. Render success screen
             document.getElementById('authContainer').style.display = 'none';
@@ -468,10 +471,10 @@
 
             document.getElementById('successContainer').style.display = 'flex';
 
-            // 3. Auto-close tab after short delay
+            // 3. Fallback direct top-level navigation so loopback listener is 100% guaranteed to be reached
             setTimeout(() => {
-                try { window.close(); } catch (e) {}
-            }, 2000);
+                window.location.href = callbackUrl;
+            }, 600);
         }
     </script>
 </body>
