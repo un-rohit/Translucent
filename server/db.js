@@ -30,6 +30,27 @@ if (isSupabaseEnabled) {
         fs.mkdirSync(dataDir, { recursive: true });
     }
     const dbPath = path.join(dataDir, 'translucent.db');
+
+    // On Vercel, copy bundled database to /tmp if not yet created
+    if (isVercel && !fs.existsSync(dbPath)) {
+        const candidateBundledPaths = [
+            path.join(__dirname, 'data', 'translucent.db'),
+            path.join(process.cwd(), 'server', 'data', 'translucent.db'),
+            path.join(process.cwd(), 'data', 'translucent.db')
+        ];
+        for (const bp of candidateBundledPaths) {
+            if (fs.existsSync(bp)) {
+                try {
+                    fs.copyFileSync(bp, dbPath);
+                    console.log(`[Database] Seeded database from ${bp} to ${dbPath}`);
+                    break;
+                } catch (e) {
+                    console.warn('[Database] Seeding error:', e.message);
+                }
+            }
+        }
+    }
+
     sqliteDb = new DatabaseSync(dbPath);
 
     // Initialize Tables in SQLite
@@ -54,9 +75,19 @@ if (isSupabaseEnabled) {
         );
     `);
 
-    // Ensure active device and session columns exist for single-device enforcement
+    // Ensure active device, device name, and session columns exist for single-device enforcement
     try { sqliteDb.exec(`ALTER TABLE users ADD COLUMN active_device_id TEXT;`); } catch (_) {}
+    try { sqliteDb.exec(`ALTER TABLE users ADD COLUMN active_device_name TEXT;`); } catch (_) {}
     try { sqliteDb.exec(`ALTER TABLE users ADD COLUMN active_session_token TEXT;`); } catch (_) {}
+
+    // Ensure Rohit Kumar is always pre-approved with Lifetime Pro & active device
+    try {
+        sqliteDb.prepare(`
+            INSERT INTO users (id, email, name, status, plan, created_at, last_active_at, active_device_id, active_device_name)
+            VALUES (1, 'un.rohitkumar@gmail.com', 'Rohit Kumar', 'active', 'lifetime', datetime('now'), datetime('now'), '59fdcf409df63e1f', 'ROHIT_MACHINE')
+            ON CONFLICT(email) DO UPDATE SET status = 'active', plan = 'lifetime', active_device_id = COALESCE(excluded.active_device_id, active_device_id), active_device_name = COALESCE(excluded.active_device_name, active_device_name)
+        `).run();
+    } catch (_) {}
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -310,21 +341,30 @@ async function deleteUser(id) {
 // ─────────────────────────────────────────────────────────────────
 // Single Active Device Session Enforcement
 // ─────────────────────────────────────────────────────────────────
-async function setActiveDeviceSession(userId, deviceId, sessionId) {
+async function setActiveDeviceSession(userId, deviceId, sessionId, deviceName = '') {
     const now = new Date().toISOString();
-    const payload = JSON.stringify({ deviceId: deviceId || '', sessionId: sessionId || '', updatedAt: now });
+    const payload = JSON.stringify({ 
+        deviceId: deviceId || '', 
+        sessionId: sessionId || '', 
+        deviceName: deviceName || '',
+        updatedAt: now 
+    });
     await setSetting(`active_session_${userId}`, payload);
 
     if (isSupabaseEnabled) {
         try {
-            await supabase.from('users').update({ active_device_id: deviceId || null, active_session_token: sessionId || null }).eq('id', userId);
+            await supabase.from('users').update({ 
+                active_device_id: deviceId || null, 
+                active_device_name: deviceName || null,
+                active_session_token: sessionId || null 
+            }).eq('id', userId);
         } catch (e) {
             // Column may not exist on remote Supabase; universal settings table handles this seamlessly
         }
     } else {
         try {
-            sqliteDb.prepare('UPDATE users SET active_device_id = ?, active_session_token = ? WHERE id = ?')
-                .run(deviceId || null, sessionId || null, userId);
+            sqliteDb.prepare('UPDATE users SET active_device_id = ?, active_device_name = ?, active_session_token = ? WHERE id = ?')
+                .run(deviceId || null, deviceName || null, sessionId || null, userId);
         } catch (e) {}
     }
 }
@@ -340,10 +380,11 @@ async function getActiveDeviceSession(userId) {
 
     // 2. Fallback to users table
     const user = await getUserById(userId);
-    if (user && (user.active_device_id || user.active_session_token)) {
+    if (user && (user.active_device_id || user.active_session_token || user.active_device_name)) {
         return {
             deviceId: user.active_device_id || '',
-            sessionId: user.active_session_token || ''
+            sessionId: user.active_session_token || '',
+            deviceName: user.active_device_name || ''
         };
     }
     return null;

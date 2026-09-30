@@ -448,17 +448,69 @@
                         <!-- Pro Account Status & Menu -->
                         <Button x:Name="ProAccountBtn" Style="{StaticResource IconButton}"
                                 Click="ProAccountBtn_Click" Height="26" Margin="2,2,4,2" Padding="6,2"
-                                WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="Account &amp; License Status">
+                                WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="Active Account &amp; Device Details">
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                 <Border Width="6" Height="6" CornerRadius="3" Background="#00E676" Margin="0,0,5,0"/>
-                                <TextBlock Text="PRO" FontWeight="Bold" FontSize="10" Foreground="#00E676"/>
+                                <TextBlock x:Name="ProAccountBtnText" Text="PRO" FontWeight="Bold" FontSize="10" Foreground="#00E676"/>
                             </StackPanel>
                             <Button.ContextMenu>
-                                <ContextMenu Background="#1E1E22" BorderBrush="#333338" BorderThickness="1">
-                                    <MenuItem x:Name="MenuAccountEmail" Header="user@gmail.com" IsEnabled="False" Foreground="#94A3B8" FontSize="11.5"/>
-                                    <MenuItem x:Name="MenuAccountPlan" Header="Plan: Translucent Pro" IsEnabled="False" Foreground="#FFFFFF" FontSize="11.5"/>
-                                    <Separator Background="#333338"/>
+                                <ContextMenu Background="#16161C" BorderBrush="#353545" BorderThickness="1.2">
+                                    <MenuItem StaysOpenOnClick="True" Background="Transparent">
+                                        <MenuItem.Header>
+                                            <Border Background="#1C1C24" BorderBrush="#2E2E3C" BorderThickness="1" CornerRadius="8" Padding="12,10" Width="260">
+                                                <StackPanel>
+                                                    <Grid Margin="0,0,0,6">
+                                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                            <Border Width="7" Height="7" CornerRadius="3.5" Background="#00E676" Margin="0,0,6,0"/>
+                                                            <TextBlock Text="ACTIVE PRO LICENSE" FontWeight="Bold" FontSize="10.5" Foreground="#00E676"/>
+                                                        </StackPanel>
+                                                        <Border HorizontalAlignment="Right" Background="#2500E676" CornerRadius="4" Padding="5,1">
+                                                            <TextBlock Text="ONLINE" FontSize="9" FontWeight="Bold" Foreground="#00E676"/>
+                                                        </Border>
+                                                    </Grid>
+                                                    <TextBlock x:Name="MenuAccountUserName" Text="Rohit Kumar" FontWeight="SemiBold" FontSize="13" Foreground="#FFFFFF"/>
+                                                    <TextBlock x:Name="MenuAccountEmail" Text="un.rohitkumar@gmail.com" FontSize="11" Foreground="#94A3B8" Margin="0,1,0,8"/>
+                                                    <Border Height="1" Background="#2A2A38" Margin="0,2,0,8"/>
+                                                    <Grid Margin="0,2">
+                                                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="70"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Text="💻 Device:" FontSize="11" Foreground="#94A3B8"/>
+                                                        <TextBlock x:Name="MenuAccountDeviceName" Grid.Column="1" Text="ROHIT_MACHINE" FontSize="11" FontWeight="SemiBold" Foreground="#FFFFFF" TextTrimming="CharacterEllipsis"/>
+                                                    </Grid>
+                                                    <Grid Margin="0,2">
+                                                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="70"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Text="🔑 Hardware:" FontSize="11" Foreground="#94A3B8"/>
+                                                        <TextBlock x:Name="MenuAccountDeviceId" Grid.Column="1" Text="59fdcf409df63e1f" FontSize="10.5" FontFamily="Consolas, monospace" Foreground="#A78BFA" TextTrimming="CharacterEllipsis"/>
+                                                    </Grid>
+                                                    <Grid Margin="0,2">
+                                                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="70"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Text="👑 Tier:" FontSize="11" Foreground="#94A3B8"/>
+                                                        <TextBlock x:Name="MenuAccountPlan" Grid.Column="1" Text="Lifetime Pro" FontSize="11" FontWeight="SemiBold" Foreground="#34D399"/>
+                                                    </Grid>
+                                                    <Grid Margin="0,2">
+                                                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="70"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Text="📅 Expiry:" FontSize="11" Foreground="#94A3B8"/>
+                                                        <TextBlock x:Name="MenuAccountExpiry" Grid.Column="1" Text="Never (Lifetime Access)" FontSize="11" Foreground="#94A3B8"/>
+                                                    </Grid>
+                                                </StackPanel>
+                                            </Border>
+                                        </MenuItem.Header>
+                                    </MenuItem>
+                                    <Separator Background="#2A2A38"/>
+                                    <MenuItem Header="📋 Copy Device Hardware ID" Click="CopyDeviceId_Click" Foreground="#E2E8F0" FontSize="12"/>
                                     <MenuItem Header="🔄 Refresh License Status" Click="CheckStatus_Click" Foreground="#FFFFFF" FontSize="12"/>
+                                    <Separator Background="#2A2A38"/>
                                     <MenuItem Header="🚪 Sign Out" Click="GateSignOutBtn_Click" Foreground="#F87171" FontSize="12"/>
                                 </ContextMenu>
                             </Button.ContextMenu>
@@ -1369,6 +1421,50 @@
                                         </Grid>
                                     </StackPanel>
                                 </Border>
+
+                                <!-- Active License & Device Information in Settings -->
+                                <Border Background="#161619" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="10,8" Margin="0,4,0,8">
+                                    <StackPanel>
+                                        <Grid Margin="0,0,0,6">
+                                            <TextBlock Text="ACTIVE LICENSE &amp; DEVICE" Foreground="{StaticResource TextMuted}" FontSize="10" FontWeight="Bold"/>
+                                            <Border HorizontalAlignment="Right" Background="#2000E676" BorderBrush="#00E676" BorderThickness="1" CornerRadius="4" Padding="5,1">
+                                                <TextBlock x:Name="SettingsStatusBadge" Text="● ACTIVE" FontSize="9.5" FontWeight="Bold" Foreground="#00E676"/>
+                                            </Border>
+                                        </Grid>
+                                        <Grid Margin="0,2">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="80"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="User Account:" FontSize="11" Foreground="{StaticResource TextSecondary}"/>
+                                            <TextBlock x:Name="SettingsUserAccount" Grid.Column="1" Text="Rohit Kumar (un.rohitkumar@gmail.com)" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextMain}" TextTrimming="CharacterEllipsis"/>
+                                        </Grid>
+                                        <Grid Margin="0,2">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="80"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="Device Name:" FontSize="11" Foreground="{StaticResource TextSecondary}"/>
+                                            <TextBlock x:Name="SettingsDeviceName" Grid.Column="1" Text="ROHIT_MACHINE" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextMain}"/>
+                                        </Grid>
+                                        <Grid Margin="0,2">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="80"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="Hardware ID:" FontSize="11" Foreground="{StaticResource TextSecondary}"/>
+                                            <TextBlock x:Name="SettingsDeviceId" Grid.Column="1" Text="59fdcf409df63e1f" FontSize="10.5" FontFamily="Consolas, monospace" Foreground="#A78BFA"/>
+                                        </Grid>
+                                        <Grid Margin="0,2">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="80"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="Subscription:" FontSize="11" Foreground="{StaticResource TextSecondary}"/>
+                                            <TextBlock x:Name="SettingsPlanText" Grid.Column="1" Text="Lifetime Pro (Never Expires)" FontSize="11" FontWeight="SemiBold" Foreground="#34D399"/>
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
                             </StackPanel>
                         </ScrollViewer>
 
@@ -1524,6 +1620,12 @@
                                                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                                     <TextBlock x:Name="GateUserName" Text="Google User" FontWeight="SemiBold" FontSize="13" Foreground="White"/>
                                                     <TextBlock x:Name="GateUserEmail" Text="user@gmail.com" FontSize="11.5" Foreground="#94A3B8"/>
+                                                    <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
+                                                        <TextBlock Text="💻 " FontSize="10"/>
+                                                        <TextBlock x:Name="GateDeviceName" Text="ROHIT_MACHINE" FontSize="10.5" Foreground="#CBD5E1" FontWeight="SemiBold"/>
+                                                        <TextBlock Text=" • " FontSize="10" Foreground="#64748B"/>
+                                                        <TextBlock x:Name="GateDeviceId" Text="59fdcf409df63e1f" FontSize="10" FontFamily="Consolas, monospace" Foreground="#A78BFA"/>
+                                                    </StackPanel>
                                                 </StackPanel>
                                                 <Border Grid.Column="2" x:Name="GateStatusPill" Background="#35F59E0B" BorderBrush="#F59E0B" BorderThickness="1" CornerRadius="10" Padding="8,3" VerticalAlignment="Center">
                                                     <TextBlock x:Name="GateStatusText" Text="Pending Approval" FontSize="10.5" FontWeight="SemiBold" Foreground="#FBBF24"/>

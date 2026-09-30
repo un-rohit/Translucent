@@ -284,14 +284,17 @@
         const urlParams = new URLSearchParams(window.location.search);
         let desktopPort = urlParams.get('port') || '58291';
         let deviceId = urlParams.get('deviceId') || '';
+        let deviceName = urlParams.get('deviceName') || '';
         
-        // Check if port or deviceId is stored in state query param (OAuth redirect)
+        // Check if port, deviceId or deviceName is stored in state query param (OAuth redirect)
         const stateParam = urlParams.get('state');
         if (stateParam) {
             const m = stateParam.match(/port=(\d+)/);
             if (m) desktopPort = m[1];
             const d = stateParam.match(/deviceId=([^&]+)/);
             if (d) deviceId = decodeURIComponent(d[1]);
+            const dn = stateParam.match(/deviceName=([^&]+)/);
+            if (dn) deviceName = decodeURIComponent(dn[1]);
         }
 
         const authCode = urlParams.get('code');
@@ -315,7 +318,7 @@
                 const res = await fetch('/api/auth/google', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ credential: response.credential, deviceId })
+                    body: JSON.stringify({ credential: response.credential, deviceId, deviceName })
                 });
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.error || 'Authentication failed');
@@ -381,7 +384,7 @@
                 }
 
                 const redirectUri = window.location.origin + window.location.pathname;
-                const state = `port=${desktopPort}&deviceId=${encodeURIComponent(deviceId)}`;
+                const state = `port=${desktopPort}&deviceId=${encodeURIComponent(deviceId)}&deviceName=${encodeURIComponent(deviceName)}`;
                 const oauthUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
                     `client_id=${encodeURIComponent(clientId)}` +
                     `&redirect_uri=${encodeURIComponent(redirectUri)}` +
@@ -407,7 +410,7 @@
                 const res = await fetch('/api/auth/google/code', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ code, redirectUri, deviceId })
+                    body: JSON.stringify({ code, redirectUri, deviceId, deviceName })
                 });
 
                 const data = await res.json();
@@ -434,7 +437,7 @@
                 const res = await fetch('/api/auth/google', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, name: name || email.split('@')[0], deviceId })
+                    body: JSON.stringify({ email, name: name || email.split('@')[0], deviceId, deviceName })
                 });
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.error || 'Authentication failed');
@@ -446,7 +449,7 @@
 
         async function completeSignIn(data) {
             // 1. Transmit session token & user info back to Desktop App local listener
-            const callbackUrl = `http://127.0.0.1:${desktopPort}/callback/?token=${encodeURIComponent(data.token)}&email=${encodeURIComponent(data.user.email)}&name=${encodeURIComponent(data.user.name)}&status=${encodeURIComponent(data.user.status)}&deviceId=${encodeURIComponent(deviceId)}`;
+            const callbackUrl = `http://127.0.0.1:${desktopPort}/callback/?token=${encodeURIComponent(data.token)}&email=${encodeURIComponent(data.user.email)}&name=${encodeURIComponent(data.user.name)}&status=${encodeURIComponent(data.user.status)}&deviceId=${encodeURIComponent(deviceId)}&deviceName=${encodeURIComponent(deviceName)}`;
 
             try {
                 fetch(callbackUrl, { mode: 'no-cors' }).catch(() => {});

@@ -567,8 +567,19 @@ namespace InvisibleChat
                 if (AppContentArea != null) AppContentArea.Visibility = Visibility.Visible;
                 if (BrowserTabsContainer != null) BrowserTabsContainer.Visibility = Visibility.Visible;
                 ProAccountBtn.Visibility = Visibility.Visible;
-                MenuAccountEmail.Header = string.IsNullOrEmpty(auth.UserEmail) ? "Pro User" : auth.UserEmail;
-                MenuAccountPlan.Header = $"Plan: {auth.Plan.ToUpper()}";
+
+                if (MenuAccountUserName != null) MenuAccountUserName.Text = string.IsNullOrEmpty(auth.UserName) ? "Rohit Kumar" : auth.UserName;
+                if (MenuAccountEmail != null) MenuAccountEmail.Text = string.IsNullOrEmpty(auth.UserEmail) ? "un.rohitkumar@gmail.com" : auth.UserEmail;
+                if (MenuAccountDeviceName != null) MenuAccountDeviceName.Text = auth.DeviceName;
+                if (MenuAccountDeviceId != null) MenuAccountDeviceId.Text = auth.DeviceId;
+                if (MenuAccountPlan != null) MenuAccountPlan.Text = auth.Plan.Equals("lifetime", StringComparison.OrdinalIgnoreCase) ? "Lifetime Pro" : "Translucent Pro";
+                if (MenuAccountExpiry != null) MenuAccountExpiry.Text = string.IsNullOrEmpty(auth.ExpiresAt) ? "Never (Lifetime Access)" : auth.ExpiresAt;
+
+                if (SettingsUserAccount != null) SettingsUserAccount.Text = $"{auth.UserName} ({auth.UserEmail})";
+                if (SettingsDeviceName != null) SettingsDeviceName.Text = auth.DeviceName;
+                if (SettingsDeviceId != null) SettingsDeviceId.Text = auth.DeviceId;
+                if (SettingsPlanText != null) SettingsPlanText.Text = auth.Plan.Equals("lifetime", StringComparison.OrdinalIgnoreCase) ? "Lifetime Pro (Never Expires)" : $"Pro ({auth.ExpiresAt})";
+                if (SettingsStatusBadge != null) SettingsStatusBadge.Text = "● ACTIVE";
 
                 if (DataContext is MainViewModel vm && vm.IsSplitView)
                 {
@@ -636,6 +647,8 @@ namespace InvisibleChat
                     GateUserEmail.Text = auth.UserEmail;
                     GateUserName.Text = string.IsNullOrEmpty(auth.UserName) ? "Google User" : auth.UserName;
                     GateUserInitial.Text = !string.IsNullOrEmpty(auth.UserName) ? auth.UserName[0].ToString().ToUpper() : "U";
+                    if (GateDeviceName != null) GateDeviceName.Text = auth.DeviceName;
+                    if (GateDeviceId != null) GateDeviceId.Text = auth.DeviceId;
 
                     if (auth.Status == "pending")
                     {
@@ -746,6 +759,18 @@ namespace InvisibleChat
         private async void CheckStatus_Click(object sender, RoutedEventArgs e)
         {
             await AuthManager.Instance.CheckSubscriptionStatusAsync();
+        }
+
+        private void CopyDeviceId_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                System.Windows.Clipboard.SetText(AuthManager.Instance.DeviceId);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to copy device ID: {ex.Message}");
+            }
         }
 
         // ─────────────────────────────────────────────────────────────────

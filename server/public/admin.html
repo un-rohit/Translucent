@@ -657,6 +657,7 @@
                     <tr>
                         <th>User Account</th>
                         <th>Status</th>
+                        <th>Active Device &amp; Hardware ID</th>
                         <th>Plan &amp; Duration</th>
                         <th>Expires</th>
                         <th>Registered</th>
@@ -665,7 +666,7 @@
                 </thead>
                 <tbody id="usersTableBody">
                     <tr>
-                        <td colspan="6" class="empty-state">
+                        <td colspan="7" class="empty-state">
                             <div class="icon">⌛</div>
                             Loading registered users...
                         </td>
@@ -896,7 +897,7 @@
             if (filtered.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="6" class="empty-state">
+                        <td colspan="7" class="empty-state">
                             <div class="icon">🔍</div>
                             No users found matching current filter.
                         </td>
@@ -916,6 +917,19 @@
 
                 const statusClass = `status-${u.status}`;
 
+                const deviceName = u.active_device_name || (u.active_device_id ? 'ROHIT_MACHINE' : '');
+                const deviceId = u.active_device_id || '';
+                const deviceHtml = (deviceId || deviceName) ? `
+                    <div style="display: flex; flex-direction: column; gap: 3px;">
+                        <span style="display: inline-flex; align-items: center; gap: 5px; font-weight: 600; font-size: 12.5px; color: #FFFFFF;">
+                            💻 ${escapeHtml(deviceName || 'Windows PC')}
+                        </span>
+                        <span style="font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: #A78BFA; background: rgba(167, 139, 250, 0.12); padding: 2px 6px; border-radius: 4px; width: fit-content;" title="Hardware ID: ${escapeHtml(deviceId)}">
+                            🔑 ${escapeHtml(deviceId ? (deviceId.length > 14 ? deviceId.substring(0, 14) + '...' : deviceId) : 'Verified')}
+                        </span>
+                    </div>
+                ` : `<span style="color: var(--text-muted); font-size: 11.5px;">—</span>`;
+
                 return `
                     <tr>
                         <td>
@@ -929,6 +943,9 @@
                         </td>
                         <td>
                             <span class="status-badge ${statusClass}">${escapeHtml(u.status)}</span>
+                        </td>
+                        <td>
+                            ${deviceHtml}
                         </td>
                         <td>
                             <strong style="text-transform: capitalize;">${escapeHtml(u.plan || 'pro')}</strong>

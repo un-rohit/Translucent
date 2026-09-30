@@ -36,6 +36,8 @@ namespace InvisibleChat
         public string SupportContact { get; private set; } = "Telegram: @translucent_admin";
         public string TelegramBotUsername { get; private set; } = string.Empty;
         public int UserId { get; private set; } = 0;
+        public string DeviceName => Environment.MachineName;
+        public string DeviceId => Config.DeviceId;
 
         public AppConfig Config { get; private set; }
 
@@ -146,6 +148,7 @@ namespace InvisibleChat
                 {
                     request.Headers.Add("X-Device-Id", Config.DeviceId);
                 }
+                request.Headers.Add("X-Device-Name", Environment.MachineName);
 
                 var response = await _httpClient.SendAsync(request);
 

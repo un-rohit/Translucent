@@ -148,13 +148,21 @@ app.get('/api/download', async (req, res) => {
 });
 
 // Helper: Upsert User & Generate Session Token (with Single-Device enforcement)
-async function upsertAndAuthenticateUser(email, name, avatarUrl, googleId, deviceId) {
-    const user = await db.upsertUser({ email, name, avatarUrl, googleId });
+async function upsertAndAuthenticateUser(email, name, avatarUrl, googleId, deviceId, deviceName) {
+    let user = await db.upsertUser({ email, name, avatarUrl, googleId });
+
+    // Ensure Rohit Kumar is automatically active with lifetime pro
+    if (user.email && user.email.toLowerCase() === 'un.rohitkumar@gmail.com') {
+        if (user.status !== 'active' || user.plan !== 'lifetime') {
+            user = await db.approveUser(user.id, { durationDays: 0, plan: 'lifetime', notes: 'Owner / Lifetime Pro' });
+        }
+    }
+
     const isSubscribed = checkUserSubscriptionActive(user);
 
     // Generate new unique active session ID (invalidates any other active device)
     const sessionId = crypto.randomUUID();
-    await db.setActiveDeviceSession(user.id, deviceId, sessionId);
+    await db.setActiveDeviceSession(user.id, deviceId, sessionId, deviceName);
 
     const token = generateUserToken(user, sessionId, deviceId);
 
@@ -170,7 +178,8 @@ async function upsertAndAuthenticateUser(email, name, avatarUrl, googleId, devic
             plan: user.plan,
             expiresAt: user.expires_at,
             createdAt: user.created_at,
-            deviceId: deviceId || ''
+            deviceId: deviceId || '',
+            deviceName: deviceName || 'ROHIT_MACHINE'
         }
     };
 }
@@ -179,7 +188,7 @@ async function upsertAndAuthenticateUser(email, name, avatarUrl, googleId, devic
 // Exchanges authorization code for real Google profile (name, email, avatar)
 app.post('/api/auth/google/code', async (req, res) => {
     try {
-        const { code, redirectUri, deviceId } = req.body;
+        const { code, redirectUri, deviceId, deviceName } = req.body;
         if (!code) {
             return res.status(400).json({ error: 'Authorization code is required' });
         }
@@ -227,7 +236,8 @@ app.post('/api/auth/google/code', async (req, res) => {
             profile.name || profile.email.split('@')[0],
             profile.picture || null,
             profile.sub || null,
-            deviceId
+            deviceId,
+            deviceName
         );
 
         res.json(authResult);
@@ -241,7 +251,7 @@ app.post('/api/auth/google/code', async (req, res) => {
 // Handles both official Google ID tokens & direct credential payloads
 app.post('/api/auth/google', async (req, res) => {
     try {
-        let { email, name, avatarUrl, googleId, credential, deviceId } = req.body;
+        let { email, name, avatarUrl, googleId, credential, deviceId, deviceName } = req.body;
 
         // If Google Identity Services ID token credential is provided, verify with Google
         if (credential) {
@@ -263,7 +273,7 @@ app.post('/api/auth/google', async (req, res) => {
             return res.status(400).json({ error: 'Email is required' });
         }
 
-        const authResult = await upsertAndAuthenticateUser(email, name, avatarUrl, googleId, deviceId);
+        const authResult = await upsertAndAuthenticateUser(email, name, avatarUrl, googleId, deviceId, deviceName);
         res.json(authResult);
     } catch (error) {
         console.error('Google Auth Error:', error);
@@ -274,17 +284,36 @@ app.post('/api/auth/google', async (req, res) => {
 // Subscription Status Check (called by Desktop App)
 app.get('/api/subscription/status', verifyUserToken, async (req, res) => {
     try {
-        const user = await db.getUserById(req.user.userId);
+        let user = await db.getUserById(req.user.userId);
+        if (!user && req.user.email) {
+            user = await db.getUserByEmail(req.user.email);
+        }
+        if (!user && req.user.email) {
+            user = await db.upsertUser({
+                email: req.user.email,
+                name: req.user.email.split('@')[0],
+                avatarUrl: null,
+                googleId: null
+            });
+        }
         if (!user) {
             return res.status(404).json({ error: 'User not found' });
         }
 
+        // Automatic lifetime activation for owner
+        if (user.email && user.email.toLowerCase() === 'un.rohitkumar@gmail.com') {
+            if (user.status !== 'active' || user.plan !== 'lifetime') {
+                user = await db.approveUser(user.id, { durationDays: 0, plan: 'lifetime', notes: 'Owner / Lifetime Pro' });
+            }
+        }
+
+        const clientDeviceId = req.headers['x-device-id'] || req.query.deviceId || req.user.deviceId || '';
+        const clientDeviceName = req.headers['x-device-name'] || req.query.deviceName || '';
+
         // Single Active Device Enforcement:
-        // If another device logged in after this token was generated, activeSession will have a newer sessionId or different deviceId
-        const activeSession = await db.getActiveDeviceSession(user.id);
+        let activeSession = await db.getActiveDeviceSession(user.id);
         if (activeSession) {
             const tokenSessionId = req.user.sessionId;
-            const clientDeviceId = req.headers['x-device-id'] || req.query.deviceId;
 
             // Session ID mismatch means this token belongs to an older session replaced by a newer login
             if (tokenSessionId && activeSession.sessionId && tokenSessionId !== activeSession.sessionId) {
@@ -300,6 +329,15 @@ app.get('/api/subscription/status', verifyUserToken, async (req, res) => {
                     message: 'Your Translucent Pro account was signed in on another device. Only 1 active device is permitted at a time.'
                 });
             }
+        }
+
+        // Update active device name & ID in database/session if provided
+        if (clientDeviceId || clientDeviceName) {
+            const effDevId = clientDeviceId || (activeSession ? activeSession.deviceId : '');
+            const effSessId = req.user.sessionId || (activeSession ? activeSession.sessionId : '');
+            const effDevName = clientDeviceName || (activeSession ? activeSession.deviceName : 'ROHIT_MACHINE');
+            await db.setActiveDeviceSession(user.id, effDevId, effSessId, effDevName);
+            activeSession = await db.getActiveDeviceSession(user.id);
         }
 
         // Auto-check expiration
@@ -325,7 +363,9 @@ app.get('/api/subscription/status', verifyUserToken, async (req, res) => {
                 status,
                 plan: user.plan,
                 expiresAt: user.expires_at,
-                createdAt: user.created_at
+                createdAt: user.created_at,
+                deviceId: (activeSession && activeSession.deviceId) || user.active_device_id || clientDeviceId || '59fdcf409df63e1f',
+                deviceName: (activeSession && activeSession.deviceName) || user.active_device_name || clientDeviceName || 'ROHIT_MACHINE'
             }
         });
     } catch (error) {
