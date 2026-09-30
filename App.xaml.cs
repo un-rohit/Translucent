@@ -15,6 +15,20 @@ namespace InvisibleChat
 
         protected override void OnStartup(StartupEventArgs e)
         {
+            // Fallback to Software rendering in Virtual Machines (VMware SVGA / VirtualBox)
+            // to prevent vm3dum64.dll privileged instruction crash (0xc0000096)
+            try
+            {
+                string sysDir = Environment.GetFolderPath(Environment.SpecialFolder.System);
+                if (File.Exists(Path.Combine(sysDir, "vm3dum64.dll")) || 
+                    File.Exists(Path.Combine(sysDir, "vm3dgl64.dll")) ||
+                    File.Exists(Path.Combine(sysDir, "VBoxOGL.dll")))
+                {
+                    System.Windows.Media.RenderOptions.ProcessRenderMode = System.Windows.Interop.RenderMode.SoftwareOnly;
+                }
+            }
+            catch { }
+
             // Set up global crash logging to capture any startup exceptions
             AppDomain.CurrentDomain.UnhandledException += (s, ev) => 
                 LogError("Unhandled Domain Exception", ev.ExceptionObject as Exception);
@@ -41,10 +55,11 @@ namespace InvisibleChat
                 return;
             }
 
-            // Create and initialize MainWindow, but do NOT show it.
+            // Create and initialize MainWindow, and display it to the user.
             var mainWindow = new MainWindow();
             MainWindow = mainWindow;
-            new System.Windows.Interop.WindowInteropHelper(mainWindow).EnsureHandle();
+            mainWindow.Show();
+            mainWindow.Activate();
 
             base.OnStartup(e);
         }
