@@ -52,6 +52,11 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Favicon handler
 app.get('/favicon.ico', (req, res) => res.status(204).end());
 
+// Clean route for Privacy Policy
+app.get('/privacy', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'privacy.html'));
+});
+
 // ─────────────────────────────────────────────────────────────────
 // Authentication Helpers
 // ─────────────────────────────────────────────────────────────────
