@@ -235,20 +235,78 @@ namespace InvisibleChat
                 // Stop any running loopback listener
                 StopLoopbackListener();
 
-                // Start local loopback listener
-                _loopbackListener = new HttpListener();
-                _loopbackListener.Prefixes.Add($"http://127.0.0.1:{LoopbackPort}/callback/");
-                _loopbackListener.Start();
+                // Generate unique temporary session ID for cloud polling (VMware & cross-device friendly)
+                string sessionId = Guid.NewGuid().ToString("N");
 
-                // Open default browser to the web login portal with deviceId and deviceName
-                string loginUrl = $"{Config.AuthServerUrl.TrimEnd('/')}/login.html?port={LoopbackPort}&deviceId={Uri.EscapeDataString(Config.DeviceId)}&deviceName={Uri.EscapeDataString(Environment.MachineName)}";
+                // Start local loopback listener
+                try
+                {
+                    _loopbackListener = new HttpListener();
+                    _loopbackListener.Prefixes.Add($"http://127.0.0.1:{LoopbackPort}/callback/");
+                    _loopbackListener.Start();
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Local loopback listener start failed (continuing with cloud session): {ex.Message}");
+                }
+
+                // Open default browser to the web login portal with deviceId, deviceName, and sessionId
+                string loginUrl = $"{Config.AuthServerUrl.TrimEnd('/')}/login.html?port={LoopbackPort}&deviceId={Uri.EscapeDataString(Config.DeviceId)}&deviceName={Uri.EscapeDataString(Environment.MachineName)}&sessionId={sessionId}";
                 Process.Start(new ProcessStartInfo
                 {
                     FileName = loginUrl,
                     UseShellExecute = true
                 });
 
-                // Await incoming callback from browser
+                // 1. Cloud Session Polling (100% reliable for VMware, Hyper-V, WSL, and remote desktop)
+                var pollCts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+                _ = Task.Run(async () =>
+                {
+                    while (!pollCts.Token.IsCancellationRequested && !IsSubscribed && string.IsNullOrEmpty(Config.AuthToken))
+                    {
+                        try
+                        {
+                            await Task.Delay(1200, pollCts.Token);
+                            string pollUrl = $"{Config.AuthServerUrl.TrimEnd('/')}/api/auth/session-check?sessionId={sessionId}";
+                            var response = await _httpClient.GetAsync(pollUrl, pollCts.Token);
+                            if (response.StatusCode == System.Net.HttpStatusCode.OK)
+                            {
+                                var content = await response.Content.ReadAsStringAsync(pollCts.Token);
+                                using var doc = JsonDocument.Parse(content);
+                                var root = doc.RootElement;
+                                if (root.TryGetProperty("token", out var tokenProp))
+                                {
+                                    string? token = tokenProp.GetString();
+                                    if (!string.IsNullOrEmpty(token))
+                                    {
+                                        string email = root.TryGetProperty("user", out var u) && u.TryGetProperty("email", out var e) ? e.GetString() ?? "" : "";
+                                        string name = u.ValueKind != JsonValueKind.Undefined && u.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
+                                        string status = u.ValueKind != JsonValueKind.Undefined && u.TryGetProperty("status", out var s) ? s.GetString() ?? "pending" : "pending";
+
+                                        Config.AuthToken = token;
+                                        Config.UserEmail = email;
+                                        Config.UserName = name;
+                                        Config.SubscriptionStatus = status;
+                                        ConfigManager.Save(Config);
+
+                                        UserEmail = Config.UserEmail;
+                                        UserName = Config.UserName;
+                                        Status = Config.SubscriptionStatus;
+
+                                        StopLoopbackListener();
+                                        pollCts.Cancel();
+
+                                        await CheckSubscriptionStatusAsync();
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        catch { }
+                    }
+                });
+
+                // 2. Local Loopback Receiver (instant 50ms callback if running on the same local Windows machine)
                 _ = Task.Run(async () =>
                 {
                     try
@@ -308,6 +366,7 @@ namespace InvisibleChat
                                 UserName = Config.UserName;
                                 Status = Config.SubscriptionStatus;
 
+                                pollCts.Cancel();
                                 StopLoopbackListener();
 
                                 // Immediately query backend for full profile & subscription status
@@ -328,6 +387,69 @@ namespace InvisibleChat
             {
                 Debug.WriteLine($"Failed to start Google sign-in: {ex.Message}");
             }
+        }
+
+        public async Task<bool> ApplyManualTokenAsync(string rawInput)
+        {
+            if (string.IsNullOrWhiteSpace(rawInput)) return false;
+            string input = rawInput.Trim();
+            string token = input;
+
+            // Handle full callback URL (e.g. http://127.0.0.1:58291/callback/?token=... or /callback?token=...)
+            if (token.Contains("token="))
+            {
+                try
+                {
+                    int idx = token.IndexOf("token=");
+                    string sub = token.Substring(idx + 6);
+                    int amp = sub.IndexOf('&');
+                    if (amp >= 0) sub = sub.Substring(0, amp);
+                    token = Uri.UnescapeDataString(sub).Trim();
+
+                    // Also extract email, name, status if present in the callback URL
+                    if (input.Contains("email="))
+                    {
+                        int eIdx = input.IndexOf("email=");
+                        string eSub = input.Substring(eIdx + 6);
+                        int eAmp = eSub.IndexOf('&');
+                        if (eAmp >= 0) eSub = eSub.Substring(0, eAmp);
+                        Config.UserEmail = Uri.UnescapeDataString(eSub).Trim();
+                        UserEmail = Config.UserEmail;
+                    }
+
+                    if (input.Contains("name="))
+                    {
+                        int nIdx = input.IndexOf("name=");
+                        string nSub = input.Substring(nIdx + 5);
+                        int nAmp = nSub.IndexOf('&');
+                        if (nAmp >= 0) nSub = nSub.Substring(0, nAmp);
+                        Config.UserName = Uri.UnescapeDataString(nSub).Trim();
+                        UserName = Config.UserName;
+                    }
+
+                    if (input.Contains("status="))
+                    {
+                        int sIdx = input.IndexOf("status=");
+                        string sSub = input.Substring(sIdx + 7);
+                        int sAmp = sSub.IndexOf('&');
+                        if (sAmp >= 0) sSub = sSub.Substring(0, sAmp);
+                        Config.SubscriptionStatus = Uri.UnescapeDataString(sSub).Trim();
+                        Status = Config.SubscriptionStatus;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Failed to parse callback URL parameters: {ex.Message}");
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(token)) return false;
+
+            Config.AuthToken = token.Trim();
+            ConfigManager.Save(Config);
+
+            StopLoopbackListener();
+            return await CheckSubscriptionStatusAsync();
         }
 
         public void StopLoopbackListener()

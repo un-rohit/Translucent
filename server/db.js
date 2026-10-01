@@ -116,6 +116,14 @@ async function setSetting(key, value) {
     }
 }
 
+async function deleteSetting(key) {
+    if (isSupabaseEnabled) {
+        await supabase.from('settings').delete().eq('key', key);
+    } else {
+        sqliteDb.prepare('DELETE FROM settings WHERE key = ?').run(key);
+    }
+}
+
 async function initSetting(key, defaultValue) {
     const existing = await getSetting(key, null);
     if (existing === null) {
@@ -394,6 +402,7 @@ module.exports = {
     isSupabaseEnabled,
     getSetting,
     setSetting,
+    deleteSetting,
     initSetting,
     getUserByEmail,
     getUserById,

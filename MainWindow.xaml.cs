@@ -687,6 +687,123 @@ namespace InvisibleChat
             await AuthManager.Instance.StartGoogleSignInAsync();
         }
 
+        private async void GateManualTokenBtn_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                string text = "";
+                if (System.Windows.Clipboard.ContainsText())
+                {
+                    text = System.Windows.Clipboard.GetText().Trim();
+                }
+
+                // If clipboard doesn't contain a token or callback URL, prompt the user with a dialog
+                if (string.IsNullOrWhiteSpace(text) || (!text.Contains("eyJ") && !text.Contains("token=")))
+                {
+                    string? prompted = PromptForManualToken();
+                    if (!string.IsNullOrWhiteSpace(prompted))
+                    {
+                        text = prompted;
+                    }
+                    else
+                    {
+                        GateLoginStatusText.Text = "⚠️ Please paste your token or login link.";
+                        GateLoginStatusText.Visibility = Visibility.Visible;
+                        return;
+                    }
+                }
+
+                GateLoginStatusText.Text = "⏳ Validating login session...";
+                GateLoginStatusText.Visibility = Visibility.Visible;
+
+                bool success = await AuthManager.Instance.ApplyManualTokenAsync(text);
+                if (success)
+                {
+                    GateLoginStatusText.Text = "✓ Logged in successfully!";
+                }
+                else
+                {
+                    GateLoginStatusText.Text = "⚠️ Token validation failed. Please check status.";
+                }
+            }
+            catch (Exception ex)
+            {
+                GateLoginStatusText.Text = $"⚠️ Error: {ex.Message}";
+                GateLoginStatusText.Visibility = Visibility.Visible;
+            }
+        }
+
+        private string? PromptForManualToken()
+        {
+            try
+            {
+                using var form = new System.Windows.Forms.Form
+                {
+                    Width = 520,
+                    Height = 220,
+                    FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog,
+                    Text = "Translucent — Paste Login Token (VMware / Manual)",
+                    StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen,
+                    BackColor = System.Drawing.Color.FromArgb(18, 18, 23),
+                    ForeColor = System.Drawing.Color.White,
+                    MaximizeBox = false,
+                    MinimizeBox = false,
+                    TopMost = true
+                };
+
+                var label = new System.Windows.Forms.Label
+                {
+                    Left = 20,
+                    Top = 15,
+                    Width = 460,
+                    Height = 35,
+                    Text = "Paste your Login Token or Callback URL below:",
+                    ForeColor = System.Drawing.Color.FromArgb(200, 200, 210),
+                    Font = new System.Drawing.Font("Segoe UI", 9.5f)
+                };
+
+                var textBox = new System.Windows.Forms.TextBox
+                {
+                    Left = 20,
+                    Top = 55,
+                    Width = 460,
+                    Font = new System.Drawing.Font("Segoe UI", 9f),
+                    BackColor = System.Drawing.Color.FromArgb(28, 28, 36),
+                    ForeColor = System.Drawing.Color.White
+                };
+
+                var okButton = new System.Windows.Forms.Button
+                {
+                    Text = "Apply & Sign In",
+                    Left = 320,
+                    Top = 110,
+                    Width = 160,
+                    Height = 36,
+                    DialogResult = System.Windows.Forms.DialogResult.OK,
+                    BackColor = System.Drawing.Color.FromArgb(124, 58, 237),
+                    ForeColor = System.Drawing.Color.White,
+                    FlatStyle = System.Windows.Forms.FlatStyle.Flat,
+                    Font = new System.Drawing.Font("Segoe UI", 9.5f, System.Drawing.FontStyle.Bold)
+                };
+                okButton.FlatAppearance.BorderSize = 0;
+
+                form.Controls.Add(label);
+                form.Controls.Add(textBox);
+                form.Controls.Add(okButton);
+                form.AcceptButton = okButton;
+
+                if (form.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+                {
+                    return textBox.Text?.Trim();
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"PromptForManualToken error: {ex.Message}");
+            }
+            return null;
+        }
+
         private void GatePurchaseBtn_Click(object sender, RoutedEventArgs e)
         {
             try

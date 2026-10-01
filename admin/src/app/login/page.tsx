@@ -7,10 +7,12 @@ import {
   ShieldCheck,
   CheckCircle2,
   ArrowRight,
-  Sparkles,
   Laptop,
   CreditCard,
-  AlertCircle
+  AlertCircle,
+  Copy,
+  Check,
+  ExternalLink
 } from 'lucide-react';
 
 interface AuthUser {
@@ -29,12 +31,15 @@ function LoginContent() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [authToken, setAuthToken] = useState<string>('');
+  const [copiedToken, setCopiedToken] = useState(false);
 
   // Extract query parameters, including fallback to OAuth state param
   const rawState = searchParams.get('state') || '';
   let desktopPort = searchParams.get('port') || '50002';
   let deviceId = searchParams.get('deviceId') || '';
   let deviceName = searchParams.get('deviceName') || 'Windows PC';
+  let sessionId = searchParams.get('sessionId') || '';
 
   if (rawState) {
     const portMatch = rawState.match(/port=(\d+)/);
@@ -43,6 +48,8 @@ function LoginContent() {
     if (devMatch) deviceId = decodeURIComponent(devMatch[1]);
     const nameMatch = rawState.match(/deviceName=([^&]+)/);
     if (nameMatch) deviceName = decodeURIComponent(nameMatch[1]);
+    const sessMatch = rawState.match(/sessionId=([^&]+)/);
+    if (sessMatch) sessionId = decodeURIComponent(sessMatch[1]);
   }
 
   const code = searchParams.get('code');
@@ -65,7 +72,7 @@ function LoginContent() {
       const res = await fetch('/api/auth/google/code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: authCode, redirectUri, deviceId, deviceName }),
+        body: JSON.stringify({ code: authCode, redirectUri, deviceId, deviceName, sessionId }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Google authentication failed');
@@ -97,7 +104,7 @@ function LoginContent() {
       }
 
       const redirectUri = window.location.origin + window.location.pathname;
-      const state = `port=${desktopPort}&deviceId=${encodeURIComponent(deviceId)}&deviceName=${encodeURIComponent(deviceName)}`;
+      const state = `port=${desktopPort}&deviceId=${encodeURIComponent(deviceId)}&deviceName=${encodeURIComponent(deviceName)}&sessionId=${encodeURIComponent(sessionId)}`;
       const oauthUrl =
         `https://accounts.google.com/o/oauth2/v2/auth?` +
         `client_id=${encodeURIComponent(clientId)}` +
@@ -131,6 +138,7 @@ function LoginContent() {
           name: name.trim() || email.split('@')[0],
           deviceId,
           deviceName,
+          sessionId,
         }),
       });
 
@@ -147,8 +155,32 @@ function LoginContent() {
 
   const completeSignIn = async (data: { token: string; user: AuthUser }) => {
     setUser(data.user);
+    setAuthToken(data.token);
 
-    // Send token to local desktop loopback listener
+    // Auto-copy token to clipboard for seamless VMware / remote handoff
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard && data.token) {
+        await navigator.clipboard.writeText(data.token);
+        setCopiedToken(true);
+      }
+    } catch {}
+
+    // 1. Post to cloud session store so VMware, remote desktops, and cross-device apps pick it up automatically
+    if (sessionId) {
+      try {
+        fetch('/api/auth/session-complete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sessionId,
+            token: data.token,
+            user: data.user,
+          }),
+        }).catch(() => {});
+      } catch {}
+    }
+
+    // 2. Silently attempt local loopback in the background (works when browser is local)
     const callbackUrl = `http://127.0.0.1:${desktopPort}/callback/?token=${encodeURIComponent(
       data.token
     )}&email=${encodeURIComponent(data.user.email)}&name=${encodeURIComponent(
@@ -157,21 +189,24 @@ function LoginContent() {
       deviceId
     )}&deviceName=${encodeURIComponent(deviceName)}`;
 
-    // 1. Fetch loopback
     try {
       fetch(callbackUrl, { mode: 'no-cors' }).catch(() => {});
     } catch {}
 
-    // 2. Image beacon fallback (bypasses private network restrictions)
     try {
       const img = new Image();
       img.src = callbackUrl;
     } catch {}
 
-    // 3. Fallback direct window location navigation
-    setTimeout(() => {
-      window.location.href = callbackUrl;
-    }, 1200);
+    // NOTE: We deliberately DO NOT force `window.location.href = callbackUrl`.
+    // Top-level redirection to 127.0.0.1 causes ERR_CONNECTION_REFUSED when running inside VMware or remote browsers!
+  };
+
+  const handleCopyToken = () => {
+    if (!authToken) return;
+    navigator.clipboard.writeText(authToken);
+    setCopiedToken(true);
+    setTimeout(() => setCopiedToken(false), 3000);
   };
 
   return (
@@ -189,6 +224,10 @@ function LoginContent() {
               <CheckCircle2 className="w-6 h-6" />
             </div>
             <h2 className="text-xl font-bold text-white">Successfully Signed In!</h2>
+            <p className="text-xs text-zinc-400">
+              Your Translucent license is connected. You can safely return to the desktop app.
+            </p>
+
             <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/[0.08] text-xs text-left space-y-2">
               <div className="flex justify-between items-center">
                 <span className="text-zinc-400">User:</span>
@@ -216,14 +255,39 @@ function LoginContent() {
               </div>
             </div>
 
-            <p className="text-xs text-zinc-400 animate-pulse">
-              Transferring session to Translucent Desktop...
-            </p>
+            {/* Cloud & VMware Handoff Confirmation */}
+            <div className="p-3 rounded-xl bg-purple-950/30 border border-purple-500/20 text-[11px] text-purple-200 text-left flex items-center gap-2">
+              <span className="relative flex h-2 w-2 shrink-0">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <span>Cloud session sync active. Returning to your Windows app automatically.</span>
+            </div>
+
+            {/* Manual Token Copy Button (Safe for VMware / Hyper-V / Remote Desktops) */}
+            {authToken && (
+              <div className="pt-2 space-y-2">
+                <button
+                  onClick={handleCopyToken}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-semibold bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 text-purple-200 hover:text-white transition-all cursor-pointer shadow-sm"
+                >
+                  {copiedToken ? (
+                    <Check className="w-4 h-4 text-emerald-400" />
+                  ) : (
+                    <Copy className="w-4 h-4 text-purple-400" />
+                  )}
+                  <span>{copiedToken ? '✓ Token Copied to Clipboard!' : '📋 Copy Token (For VMware / Manual Login)'}</span>
+                </button>
+                <p className="text-[11px] text-zinc-400">
+                  Using VMware? Click above to copy, then in Translucent desktop click <strong>Paste Token</strong>.
+                </p>
+              </div>
+            )}
 
             {user.status !== 'active' && (
               <Link
                 href={`/pay?userId=${user.id}&email=${encodeURIComponent(user.email)}`}
-                className="mt-4 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 shadow-lg shadow-purple-950/40 transition-all"
+                className="mt-3 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 shadow-lg shadow-purple-950/40 transition-all"
               >
                 <CreditCard className="w-4 h-4" />
                 <span>Activate Pro License (₹99)</span>

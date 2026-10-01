@@ -1645,6 +1645,12 @@
                                         </Button>
 
                                         <TextBlock x:Name="GateLoginStatusText" Text="" Foreground="#00E676" FontSize="11.5" HorizontalAlignment="Center" Margin="0,12,0,0" Visibility="Collapsed"/>
+                                        <Button x:Name="GateManualTokenBtn" Click="GateManualTokenBtn_Click"
+                                                Content="📋 Paste Token from Clipboard (VMware)"
+                                                Background="Transparent" Foreground="#A78BFA" FontSize="11"
+                                                Margin="0,8,0,0" BorderThickness="0" Cursor="Hand"
+                                                HorizontalAlignment="Center"
+                                                WindowChrome.IsHitTestVisibleInChrome="True"/>
 
                                     </StackPanel>
 

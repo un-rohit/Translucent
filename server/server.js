@@ -205,8 +205,130 @@ app.post('/api/payment/submit-utr', async (req, res) => {
     }
 });
 
+// ─────────────────────────────────────────────────────────────────
+// Cloud Auth Session Store (for VMware, Remote Desktop, & Cross-Device Sign-In)
+// ─────────────────────────────────────────────────────────────────
+const pendingAuthSessions = new Map(); // sessionId -> { token, user, createdAt }
+
+setInterval(() => {
+    const now = Date.now();
+    for (const [sid, sess] of pendingAuthSessions.entries()) {
+        if (now - sess.createdAt > 10 * 60 * 1000) {
+            pendingAuthSessions.delete(sid);
+        }
+    }
+}, 60 * 1000);
+
+// Session check endpoint (polled by Desktop App, e.g. on VMware / isolated network)
+app.get('/api/auth/session-check', async (req, res) => {
+    try {
+        const { sessionId } = req.query;
+        if (!sessionId) {
+            return res.status(204).end();
+        }
+
+        // 1. In-memory check
+        let sess = pendingAuthSessions.get(sessionId);
+
+        // 2. Persistent check (Supabase / SQLite) for cross-lambda / cold-start reliability
+        if (!sess) {
+            const raw = await db.getSetting(`auth_session_${sessionId}`, null);
+            if (raw) {
+                try {
+                    sess = JSON.parse(raw);
+                } catch (_) {}
+            }
+        }
+
+        if (!sess) {
+            return res.status(204).end(); // No content yet
+        }
+
+        res.json(sess);
+    } catch (err) {
+        console.error('Session check error:', err);
+        res.status(500).json({ error: 'Session check failed' });
+    }
+});
+
+// Session complete endpoint (called by Next.js login page upon successful auth)
+app.post('/api/auth/session-complete', async (req, res) => {
+    try {
+        const { sessionId, token, user } = req.body;
+        if (sessionId && token) {
+            const sessData = {
+                token,
+                user,
+                createdAt: Date.now()
+            };
+            pendingAuthSessions.set(sessionId, sessData);
+            try {
+                await db.setSetting(`auth_session_${sessionId}`, JSON.stringify(sessData));
+            } catch (e) {
+                console.warn('Could not persist auth session in session-complete:', e.message);
+            }
+        }
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Callback route fallback (if user's browser ever visits /callback on this domain)
+app.get(['/callback', '/callback/'], (req, res) => {
+    const { token, email, name, status, deviceName } = req.query;
+    res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Authentication Successful — Translucent</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #070709; color: #fff; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }
+        .card { max-width: 440px; width: 100%; background: #121217; border: 1px solid rgba(255,255,255,0.1); border-radius: 24px; padding: 32px; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.5); }
+        .icon { width: 54px; height: 54px; border-radius: 50%; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); color: #34d399; display: flex; align-items: center; justify-content: center; font-size: 26px; margin: 0 auto 16px; }
+        h1 { font-size: 22px; font-weight: 700; margin: 0 0 8px; }
+        p { color: #a1a1aa; font-size: 13px; line-height: 1.5; margin: 0 0 20px; }
+        .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 12px 20px; background: linear-gradient(135deg, #7c3aed, #4f46e5); color: #fff; font-size: 13px; font-weight: 600; border-radius: 12px; border: none; cursor: pointer; text-decoration: none; margin-top: 10px; }
+        .btn-copy { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: #e4e4e7; }
+        .btn-copy:hover { background: rgba(255,255,255,0.1); color: #fff; }
+        .user-box { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 14px; padding: 14px; margin-bottom: 20px; text-align: left; font-size: 12px; }
+        .user-row { display: flex; justify-content: space-between; margin-bottom: 6px; }
+        .user-row:last-child { margin-bottom: 0; }
+        .label { color: #71717a; }
+        .val { color: #f4f4f5; font-weight: 600; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="icon">✓</div>
+        <h1>Successfully Signed In!</h1>
+        <p>Your Translucent license is connected. You can return to Translucent Desktop.</p>
+        <div class="user-box">
+            ${email ? `<div class="user-row"><span class="label">Email:</span><span class="val">${email}</span></div>` : ''}
+            ${name ? `<div class="user-row"><span class="label">Name:</span><span class="val">${name}</span></div>` : ''}
+            ${deviceName ? `<div class="user-row"><span class="label">Device:</span><span class="val">${deviceName}</span></div>` : ''}
+        </div>
+        ${token ? `
+        <button id="copyBtn" class="btn btn-copy" onclick="copyToken()">📋 Copy Login Token (For VMware / Manual Login)</button>
+        <script>
+            function copyToken() {
+                navigator.clipboard.writeText('${token}');
+                var b = document.getElementById('copyBtn');
+                b.innerText = '✓ Token Copied to Clipboard!';
+                b.style.borderColor = '#10b981';
+                b.style.color = '#34d399';
+            }
+            try { navigator.clipboard.writeText('${token}'); } catch(e){}
+        </script>
+        ` : ''}
+    </div>
+</body>
+</html>`);
+});
+
 // Helper: Upsert User & Generate Session Token (with Single-Device enforcement)
-async function upsertAndAuthenticateUser(email, name, avatarUrl, googleId, deviceId, deviceName) {
+async function upsertAndAuthenticateUser(email, name, avatarUrl, googleId, deviceId, deviceName, authSessionId) {
     let user = await db.upsertUser({ email, name, avatarUrl, googleId });
 
     // Ensure Rohit Kumar is automatically active with lifetime pro
@@ -224,7 +346,7 @@ async function upsertAndAuthenticateUser(email, name, avatarUrl, googleId, devic
 
     const token = generateUserToken(user, sessionId, deviceId);
 
-    return {
+    const authResult = {
         token,
         isSubscribed,
         user: {
@@ -240,13 +362,28 @@ async function upsertAndAuthenticateUser(email, name, avatarUrl, googleId, devic
             deviceName: deviceName || 'Windows PC'
         }
     };
+
+    if (authSessionId) {
+        const sessData = {
+            ...authResult,
+            createdAt: Date.now()
+        };
+        pendingAuthSessions.set(authSessionId, sessData);
+        try {
+            await db.setSetting(`auth_session_${authSessionId}`, JSON.stringify(sessData));
+        } catch (e) {
+            console.warn('Could not persist auth session in upsert:', e.message);
+        }
+    }
+
+    return authResult;
 }
 
 // Google OAuth 2.0 Authorization Code Exchange Endpoint
 // Exchanges authorization code for real Google profile (name, email, avatar)
 app.post('/api/auth/google/code', async (req, res) => {
     try {
-        const { code, redirectUri, deviceId, deviceName } = req.body;
+        const { code, redirectUri, deviceId, deviceName, sessionId } = req.body;
         if (!code) {
             return res.status(400).json({ error: 'Authorization code is required' });
         }
@@ -295,7 +432,8 @@ app.post('/api/auth/google/code', async (req, res) => {
             profile.picture || null,
             profile.sub || null,
             deviceId,
-            deviceName
+            deviceName,
+            sessionId
         );
 
         res.json(authResult);
@@ -309,7 +447,7 @@ app.post('/api/auth/google/code', async (req, res) => {
 // Handles both official Google ID tokens & direct credential payloads
 app.post('/api/auth/google', async (req, res) => {
     try {
-        let { email, name, avatarUrl, googleId, credential, deviceId, deviceName } = req.body;
+        let { email, name, avatarUrl, googleId, credential, deviceId, deviceName, sessionId } = req.body;
 
         // If Google Identity Services ID token credential is provided, verify with Google
         if (credential) {
@@ -331,7 +469,7 @@ app.post('/api/auth/google', async (req, res) => {
             return res.status(400).json({ error: 'Email is required' });
         }
 
-        const authResult = await upsertAndAuthenticateUser(email, name, avatarUrl, googleId, deviceId, deviceName);
+        const authResult = await upsertAndAuthenticateUser(email, name, avatarUrl, googleId, deviceId, deviceName, sessionId);
         res.json(authResult);
     } catch (error) {
         console.error('Google Auth Error:', error);
