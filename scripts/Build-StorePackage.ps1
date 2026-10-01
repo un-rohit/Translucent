@@ -55,7 +55,7 @@ if (-not $NoRebuild) {
     $userDotnet = "$env:USERPROFILE\.dotnet\dotnet.exe"
     $dotnetCmd = if (Test-Path $userDotnet) { $userDotnet } else { "dotnet" }
     
-    & $dotnetCmd publish "$rootDir\InvisibleChat.csproj" -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o "$publishOut"
+    & $dotnetCmd publish "$rootDir\InvisibleChat.csproj" -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -o "$publishOut"
     if ($LASTEXITCODE -ne 0) {
         Write-Error "dotnet publish failed!"
         exit 1
@@ -133,6 +133,25 @@ if (Test-Path $signScript) {
 }
 
 if ($LASTEXITCODE -eq 0) {
+    # 6. Sync to web distribution folder
+    $serverDownloads = Join-Path $rootDir "server\public\downloads"
+    if (Test-Path $serverDownloads) {
+        Write-Host "`n[*] Syncing to web distribution ($serverDownloads)..." -ForegroundColor Yellow
+        $serverMsix = Join-Path $serverDownloads "Translucent.msix"
+        Copy-Item -Path "$outputMsix" -Destination "$serverMsix" -Force
+        Write-Host "[OK] Synced $serverMsix" -ForegroundColor Green
+
+        $publishExe = Join-Path $rootDir "publish\InvisibleChat.exe"
+        $serverExe = Join-Path $serverDownloads "Translucent.exe"
+        if (Test-Path $publishExe) {
+            Copy-Item -Path "$publishExe" -Destination "$serverExe" -Force
+            if (Test-Path $signScript) {
+                & powershell -ExecutionPolicy Bypass -File "$signScript" -TargetPath "$serverExe" | Out-Null
+            }
+            Write-Host "[OK] Synced and signed $serverExe" -ForegroundColor Green
+        }
+    }
+
     $sizeMB = [math]::Round((Get-Item $outputMsix).Length / 1MB, 2)
     Write-Host "`n============================================================" -ForegroundColor Green
     Write-Host " [SUCCESS] Translucent.msix generated successfully ($sizeMB MB)" -ForegroundColor Green
