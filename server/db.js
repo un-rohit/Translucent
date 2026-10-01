@@ -87,6 +87,11 @@ if (isSupabaseEnabled) {
             VALUES (1, 'un.rohitkumar@gmail.com', 'Rohit Kumar', 'active', 'lifetime', datetime('now'), datetime('now'))
             ON CONFLICT(email) DO UPDATE SET status = 'active', plan = 'lifetime'
         `).run();
+        sqliteDb.prepare(`
+            INSERT INTO users (email, name, status, plan, created_at, last_active_at)
+            VALUES ('rohitkumarrar@gmail.com', 'Rohit Kumar', 'active', 'lifetime', datetime('now'), datetime('now'))
+            ON CONFLICT(email) DO UPDATE SET status = 'active', plan = 'lifetime'
+        `).run();
     } catch (_) {}
 }
 

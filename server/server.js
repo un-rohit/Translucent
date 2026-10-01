@@ -332,7 +332,8 @@ async function upsertAndAuthenticateUser(email, name, avatarUrl, googleId, devic
     let user = await db.upsertUser({ email, name, avatarUrl, googleId });
 
     // Ensure Rohit Kumar is automatically active with lifetime pro
-    if (user.email && user.email.toLowerCase() === 'un.rohitkumar@gmail.com') {
+    const ownerEmails = ['un.rohitkumar@gmail.com', 'rohitkumarrar@gmail.com'];
+    if (user.email && ownerEmails.includes(user.email.toLowerCase())) {
         if (user.status !== 'active' || user.plan !== 'lifetime') {
             user = await db.approveUser(user.id, { durationDays: 0, plan: 'lifetime', notes: 'Owner / Lifetime Pro' });
         }
