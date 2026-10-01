@@ -53,9 +53,23 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Favicon handler
 app.get('/favicon.ico', (req, res) => res.status(204).end());
 
-// Clean route for Privacy Policy
-app.get('/privacy', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'privacy.html'));
+// Clean routes for Next.js Migrated Pages
+app.get(['/privacy', '/privacy.html'], (req, res) => {
+    const p = path.join(__dirname, 'public', 'privacy.html');
+    if (fs.existsSync(p)) return res.sendFile(p);
+    res.redirect('/');
+});
+
+app.get(['/pay', '/pay.html'], (req, res) => {
+    const p = path.join(__dirname, 'public', 'pay.html');
+    if (fs.existsSync(p)) return res.sendFile(p);
+    res.redirect('/');
+});
+
+app.get(['/login', '/login.html'], (req, res) => {
+    const p = path.join(__dirname, 'public', 'login.html');
+    if (fs.existsSync(p)) return res.sendFile(p);
+    res.redirect('/');
 });
 
 // Route /admin and /admin.html to the Next.js Admin portal
@@ -157,6 +171,38 @@ app.get('/api/public/config', async (req, res) => {
 app.get('/api/download', async (req, res) => {
     const downloadUrl = await db.getSetting('download_url', '/downloads/Translucent.exe');
     res.redirect(downloadUrl);
+});
+
+// Payment UTR Submission Endpoint
+app.post('/api/payment/submit-utr', async (req, res) => {
+    try {
+        const { utr, email, userId } = req.body;
+        if (!utr || !utr.trim()) {
+            return res.status(400).json({ error: 'UTR / Transaction ID is required' });
+        }
+        console.log(`[Payment] 💳 UTR submitted: "${utr.trim()}" for user (id: ${userId}, email: ${email})`);
+
+        let user = null;
+        if (userId) {
+            user = await db.getUserById(userId);
+        }
+        if (!user && email) {
+            user = await db.getUserByEmail(email);
+        }
+
+        if (user) {
+            await db.approveUser(user.id, {
+                durationDays: user.status === 'active' ? undefined : 0,
+                plan: user.plan || 'lifetime',
+                notes: `Submitted UTR: ${utr.trim()} on ${new Date().toISOString()}`
+            }).catch(() => {});
+        }
+
+        res.json({ success: true, message: 'Transaction ID recorded successfully' });
+    } catch (e) {
+        console.error('Submit UTR error:', e);
+        res.status(500).json({ error: 'Failed to record transaction details' });
+    }
 });
 
 // Helper: Upsert User & Generate Session Token (with Single-Device enforcement)
