@@ -3,6 +3,12 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
+    <AssemblyName>Translucent</AssemblyName>
+    <AssemblyTitle>Translucent</AssemblyTitle>
+    <Product>Translucent</Product>
+    <Title>Translucent</Title>
+    <PackageId>Translucent</PackageId>
+    <Description>Translucent - Stealth AI Copilot for Windows</Description>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
@@ -17,7 +23,7 @@
 
   <!-- Automatically terminate previously running instance before building so the output binary is never locked -->
   <Target Name="KillRunningApp" BeforeTargets="BeforeBuild" Condition="'$(OS)' == 'Windows_NT'">
-    <Exec Command="taskkill /F /IM InvisibleChat.exe 2&gt;nul || exit 0" ContinueOnError="true" IgnoreExitCode="true" />
+    <Exec Command="taskkill /F /IM Translucent.exe 2&gt;nul &amp;&amp; taskkill /F /IM InvisibleChat.exe 2&gt;nul || exit 0" ContinueOnError="true" IgnoreExitCode="true" />
   </Target>
 
 </Project>

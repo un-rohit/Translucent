@@ -9,6 +9,10 @@ namespace InvisibleChat
     {
         private static readonly string FolderPath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), 
+            "Translucent"
+        );
+        private static readonly string LegacyFolderPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), 
             "InvisibleChat"
         );
         private static FileStream? _lockStream;
@@ -18,6 +22,21 @@ namespace InvisibleChat
         protected override void OnStartup(StartupEventArgs e)
         {
             LogInfo("OnStartup started");
+
+            // Migrate legacy data folder if needed
+            try
+            {
+                if (!Directory.Exists(FolderPath) && Directory.Exists(LegacyFolderPath))
+                {
+                    Directory.CreateDirectory(FolderPath);
+                    foreach (var file in Directory.GetFiles(LegacyFolderPath))
+                    {
+                        var dest = Path.Combine(FolderPath, Path.GetFileName(file));
+                        if (!File.Exists(dest)) File.Copy(file, dest, true);
+                    }
+                }
+            }
+            catch { }
 
             // Fallback to Software rendering in Virtual Machines (VMware SVGA / VirtualBox)
             // to prevent vm3dum64.dll privileged instruction crash (0xc0000096)
@@ -68,7 +87,8 @@ namespace InvisibleChat
                 // Another instance is already running. Signal it to restore/show and exit.
                 try
                 {
-                    if (System.Threading.EventWaitHandle.TryOpenExisting("InvisibleChat_BringToFront_Event", out var existingEvent))
+                    if (System.Threading.EventWaitHandle.TryOpenExisting("Translucent_BringToFront_Event", out var existingEvent) ||
+                        System.Threading.EventWaitHandle.TryOpenExisting("InvisibleChat_BringToFront_Event", out existingEvent))
                     {
                         existingEvent.Set();
                         existingEvent.Dispose();
@@ -84,7 +104,7 @@ namespace InvisibleChat
             // Start listening for wake/show signals from secondary launches
             try
             {
-                _showAppEvent = new System.Threading.EventWaitHandle(false, System.Threading.EventResetMode.AutoReset, "InvisibleChat_BringToFront_Event");
+                _showAppEvent = new System.Threading.EventWaitHandle(false, System.Threading.EventResetMode.AutoReset, "Translucent_BringToFront_Event");
                 var waitThread = new System.Threading.Thread(() =>
                 {
                     while (true)

@@ -133,9 +133,16 @@ namespace InvisibleChat
             if (_webViewEnv != null) return;
             try
             {
-                string userDataFolder = Path.Combine(
+                string legacyProfile = Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                     "InvisibleChat", "BrowserProfile");
+                string userDataFolder = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "Translucent", "BrowserProfile");
+                if (!Directory.Exists(userDataFolder) && Directory.Exists(legacyProfile))
+                {
+                    try { Directory.Move(legacyProfile, userDataFolder); } catch { userDataFolder = legacyProfile; }
+                }
 
                 var options = new CoreWebView2EnvironmentOptions(
                     "--enable-features=AutoupdateElevated,MediaStream,WebRTC-H264WithOpenH264FFmpeg,AudioServiceOutOfProcess " +

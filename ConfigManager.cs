@@ -87,7 +87,11 @@ namespace InvisibleChat
     {
         private static readonly string FolderPath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), 
-            "InvisibleChat"
+            "Translucent"
+        );
+        private static readonly string LegacyFilePath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), 
+            "InvisibleChat", "config.json"
         );
         private static readonly string FilePath = Path.Combine(FolderPath, "config.json");
 
@@ -95,6 +99,16 @@ namespace InvisibleChat
         {
             try
             {
+                if (!File.Exists(FilePath) && File.Exists(LegacyFilePath))
+                {
+                    try
+                    {
+                        if (!Directory.Exists(FolderPath)) Directory.CreateDirectory(FolderPath);
+                        File.Copy(LegacyFilePath, FilePath, true);
+                    }
+                    catch { }
+                }
+
                 if (File.Exists(FilePath))
                 {
                     string json = File.ReadAllText(FilePath);

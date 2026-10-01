@@ -190,7 +190,7 @@ export default function LandingPage() {
               <span className="h-3 w-3 rounded-full bg-amber-500/80 inline-block"></span>
               <span className="h-3 w-3 rounded-full bg-emerald-500/80 inline-block"></span>
               <span className="ml-2 text-xs font-semibold text-zinc-400 flex items-center gap-2">
-                <span>Invisible Chat — Active Acrylic Overlay</span>
+                <span>Translucent — Active Acrylic Overlay</span>
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
                   PROTECTED
                 </span>

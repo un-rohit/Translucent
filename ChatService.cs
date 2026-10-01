@@ -388,7 +388,7 @@ namespace InvisibleChat
                 request.Headers.Add("HTTP-Referer", "https://translucent-livid.vercel.app");
                 request.Headers.Add("X-Title", "Translucent Assistant");
             }
-            request.Headers.Add("User-Agent", "InvisibleChatApp");
+            request.Headers.Add("User-Agent", "TranslucentApp");
 
             HttpResponseMessage? response = null;
             string? connError = null;

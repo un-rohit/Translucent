@@ -39,7 +39,9 @@ server/node_modules/
 server/data/
 server/.env
 
-# Downloads
-!server/public/downloads/*
+# Downloads (large binaries - distribute via GitHub Releases or CDN, not git)
+server/public/downloads/*.exe
+server/public/downloads/*.msix
+server/public/downloads/*.appx
 publish_final/
 publish_temp/

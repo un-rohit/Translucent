@@ -141,7 +141,10 @@ if ($LASTEXITCODE -eq 0) {
         Copy-Item -Path "$outputMsix" -Destination "$serverMsix" -Force
         Write-Host "[OK] Synced $serverMsix" -ForegroundColor Green
 
-        $publishExe = Join-Path $rootDir "publish\InvisibleChat.exe"
+        $publishExe = Join-Path $rootDir "publish\Translucent.exe"
+        if (-not (Test-Path $publishExe)) {
+            $publishExe = Join-Path $rootDir "publish\InvisibleChat.exe"
+        }
         $serverExe = Join-Path $serverDownloads "Translucent.exe"
         if (Test-Path $publishExe) {
             Copy-Item -Path "$publishExe" -Destination "$serverExe" -Force

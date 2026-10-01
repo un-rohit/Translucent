@@ -6,7 +6,7 @@
         xmlns:local="clr-namespace:InvisibleChat"
         xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
         mc:Ignorable="d"
-        Title="Invisible AI Chat"
+        Title="Translucent"
         Height="640" Width="480"
         MinHeight="420" MinWidth="380"
         WindowStyle="None"

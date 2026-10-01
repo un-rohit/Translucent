@@ -81,7 +81,7 @@ export default function PrivacyPolicyPage() {
                 </li>
                 <li className="flex items-start gap-2.5">
                   <Check className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                  <span>Temporary offline cache stored under <code className="text-purple-300 font-mono">%LOCALAPPDATA%\InvisibleChat\history.json</code> for instant offline startup.</span>
+                  <span>Temporary offline cache stored under <code className="text-purple-300 font-mono">%LOCALAPPDATA%\Translucent\history.json</code> for instant offline startup.</span>
                 </li>
               </ul>
             </div>
