@@ -84,7 +84,9 @@ export default function LandingPage() {
           <nav className="hidden md:flex items-center gap-6 text-xs font-semibold text-zinc-300">
             <a href="#features" className="hover:text-purple-300 transition-colors">Features</a>
             <a href="#showcase" className="hover:text-purple-300 transition-colors">Interface</a>
+            <a href="#ai-models" className="hover:text-purple-300 transition-colors">AI Models</a>
             <a href="#how-it-works" className="hover:text-purple-300 transition-colors">How It Works</a>
+            <Link href="/docs" className="text-purple-400 hover:text-purple-300 transition-colors font-bold">Docs</Link>
             <a href="#download" className="hover:text-purple-300 transition-colors">Download</a>
             <a href="#faq" className="hover:text-purple-300 transition-colors">FAQ</a>
           </nav>
@@ -473,6 +475,181 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ─── Multi-Provider AI Documentation Section ─── */}
+      <section id="ai-models" className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+        <div className="rounded-3xl border border-purple-500/20 bg-gradient-to-b from-[#121217]/90 via-[#0d0d12]/90 to-[#070709] p-8 sm:p-12 shadow-2xl backdrop-blur-2xl">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
+            <div>
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-xs font-bold text-purple-300 mb-3">
+                <Sparkles className="w-3.5 h-3.5" />
+                MULTI-PROVIDER AI ENGINE
+              </div>
+              <h3 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
+                Connect Any AI Model with Instant Switching
+              </h3>
+              <p className="mt-2 text-sm text-zinc-400 max-w-2xl leading-relaxed">
+                Translucent isn&apos;t locked to a single provider. Switch freely between Google Gemini, Groq, OpenAI, DeepSeek, OpenRouter, and local Ollama directly in Settings (⚙️ icon) with dedicated key memory.
+              </p>
+            </div>
+
+            <Link
+              href="/docs"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 shadow-lg shadow-purple-950/40 transition-all hover:scale-105 shrink-0 self-start md:self-auto"
+            >
+              <span>Full Documentation &amp; Setup Guide</span>
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+
+          {/* AI Providers Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+            {/* Google Gemini */}
+            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5 hover:border-emerald-500/40 transition-all">
+              <div className="flex items-center justify-between mb-3">
+                <span className="font-bold text-white text-sm">Google Gemini</span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
+                  Default &amp; Vision
+                </span>
+              </div>
+              <div className="text-xs text-zinc-400 mb-3 leading-relaxed">
+                1M token context for deep reasoning and real-time screen snip analysis with automatic 503 failover.
+              </div>
+              <div className="font-mono text-[11px] text-zinc-300 mb-4 bg-black/40 p-2 rounded-lg border border-white/[0.04]">
+                gemini-3.8-flash, gemini-2.5-flash
+              </div>
+              <a
+                href="https://aistudio.google.com/apikey"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-purple-400 hover:text-purple-300"
+              >
+                <span>Get API Key (aistudio.google.com)</span>
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            </div>
+
+            {/* Groq */}
+            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5 hover:border-amber-500/40 transition-all">
+              <div className="flex items-center justify-between mb-3">
+                <span className="font-bold text-white text-sm">Groq</span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/20">
+                  Free &amp; Ultra Fast
+                </span>
+              </div>
+              <div className="text-xs text-zinc-400 mb-3 leading-relaxed">
+                World&apos;s fastest LPU inference streaming at 500+ tokens/sec. 100% free developer tier.
+              </div>
+              <div className="font-mono text-[11px] text-zinc-300 mb-4 bg-black/40 p-2 rounded-lg border border-white/[0.04]">
+                llama-3.3-70b-versatile, llama-3.1-8b
+              </div>
+              <a
+                href="https://console.groq.com/keys"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-purple-400 hover:text-purple-300"
+              >
+                <span>Get Free Key (console.groq.com)</span>
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            </div>
+
+            {/* OpenAI */}
+            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5 hover:border-cyan-500/40 transition-all">
+              <div className="flex items-center justify-between mb-3">
+                <span className="font-bold text-white text-sm">OpenAI (GPT-4o)</span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">
+                  Gold Standard
+                </span>
+              </div>
+              <div className="text-xs text-zinc-400 mb-3 leading-relaxed">
+                State-of-the-art accuracy for architectural design, code review, and structured responses.
+              </div>
+              <div className="font-mono text-[11px] text-zinc-300 mb-4 bg-black/40 p-2 rounded-lg border border-white/[0.04]">
+                gpt-4o, gpt-4o-mini, o3-mini
+              </div>
+              <a
+                href="https://platform.openai.com/api-keys"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-purple-400 hover:text-purple-300"
+              >
+                <span>Get API Key (platform.openai.com)</span>
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            </div>
+
+            {/* DeepSeek */}
+            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5 hover:border-blue-500/40 transition-all">
+              <div className="flex items-center justify-between mb-3">
+                <span className="font-bold text-white text-sm">DeepSeek</span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-300 border border-blue-500/20">
+                  Deep Reasoning
+                </span>
+              </div>
+              <div className="text-xs text-zinc-400 mb-3 leading-relaxed">
+                High-performance reasoning and mathematical deductions with low token costs.
+              </div>
+              <div className="font-mono text-[11px] text-zinc-300 mb-4 bg-black/40 p-2 rounded-lg border border-white/[0.04]">
+                deepseek-chat, deepseek-reasoner
+              </div>
+              <a
+                href="https://platform.deepseek.com"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-purple-400 hover:text-purple-300"
+              >
+                <span>Get API Key (platform.deepseek.com)</span>
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            </div>
+
+            {/* OpenRouter */}
+            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5 hover:border-purple-500/40 transition-all">
+              <div className="flex items-center justify-between mb-3">
+                <span className="font-bold text-white text-sm">OpenRouter</span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-300 border border-purple-500/20">
+                  Any Model
+                </span>
+              </div>
+              <div className="text-xs text-zinc-400 mb-3 leading-relaxed">
+                Access 300+ models including Claude 3.5 Sonnet, Llama 3.3, and Mistral with a single key.
+              </div>
+              <div className="font-mono text-[11px] text-zinc-300 mb-4 bg-black/40 p-2 rounded-lg border border-white/[0.04]">
+                meta-llama/llama-3.3-70b, claude-3.5
+              </div>
+              <a
+                href="https://openrouter.ai/keys"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-purple-400 hover:text-purple-300"
+              >
+                <span>Get API Key (openrouter.ai)</span>
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            </div>
+
+            {/* Local Ollama */}
+            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5 hover:border-zinc-500/40 transition-all">
+              <div className="flex items-center justify-between mb-3">
+                <span className="font-bold text-white text-sm">Local / Ollama</span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-zinc-500/10 text-zinc-300 border border-zinc-500/20">
+                  100% Offline &amp; Private
+                </span>
+              </div>
+              <div className="text-xs text-zinc-400 mb-3 leading-relaxed">
+                Run zero-leak models locally on your GPU. Zero API fees, zero rate limits, full privacy.
+              </div>
+              <div className="font-mono text-[11px] text-zinc-300 mb-4 bg-black/40 p-2 rounded-lg border border-white/[0.04]">
+                llama3, mistral, deepseek-r1
+              </div>
+              <span className="text-xs text-zinc-500 font-mono">
+                http://localhost:11434 (No Key Needed)
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ─── Download Section ─── */}
       <section id="download" className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
         <div className="rounded-3xl border border-white/[0.12] bg-[#14141c]/90 p-8 sm:p-12 shadow-2xl backdrop-blur-2xl">
@@ -613,11 +790,17 @@ export default function LandingPage() {
             <a href="/downloads/Translucent.exe" className="hover:text-white transition-colors" download="Translucent.exe">
               Standalone (.exe)
             </a>
+            <Link href="/docs" className="text-purple-400 hover:text-purple-300 transition-colors font-semibold">
+              Documentation &amp; AI Setup
+            </Link>
             <Link href="/admin" className="text-purple-400 hover:text-purple-300 transition-colors font-semibold">
               Admin Console
             </Link>
             <a href="#features" className="hover:text-white transition-colors">
               Features
+            </a>
+            <a href="#ai-models" className="hover:text-white transition-colors">
+              AI Models
             </a>
             <a href="#faq" className="hover:text-white transition-colors">
               FAQ
