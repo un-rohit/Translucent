@@ -3220,6 +3220,22 @@ namespace InvisibleChat
             catch { }
         }
 
+        private void OpenApiKeyHelper_Click(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is MainViewModel vm && !string.IsNullOrWhiteSpace(vm.ApiKeyHelperUrl))
+            {
+                try
+                {
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = vm.ApiKeyHelperUrl,
+                        UseShellExecute = true
+                    });
+                }
+                catch { }
+            }
+        }
+
         private void TestAudioDevicesAndPermissions()
         {
             var sb = new System.Text.StringBuilder();

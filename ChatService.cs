@@ -30,15 +30,30 @@ namespace InvisibleChat
         // ──────────────────────────────────────────────────────────────────────
         public async IAsyncEnumerable<string> StreamMessageAsync(List<ChatMessage> conversationHistory, AppConfig config)
         {
-            if (string.IsNullOrWhiteSpace(config.ApiKey))
+            string activeKey = config.GetCurrentApiKey();
+            bool isCustomLocal = config.AiProvider.Contains("Custom", StringComparison.OrdinalIgnoreCase) ||
+                                 config.AiProvider.Contains("Local", StringComparison.OrdinalIgnoreCase);
+
+            if (string.IsNullOrWhiteSpace(activeKey) && !isCustomLocal)
             {
-                yield return "Please enter your **Gemini API Key** in Settings (⚙️ icon) to start chatting!\n\n" +
-                             "You can get a free key at **aistudio.google.com/apikey**.";
+                string provider = config.AiProvider;
+                string keyUrl = "aistudio.google.com/apikey";
+                if (provider.Contains("Groq", StringComparison.OrdinalIgnoreCase))
+                    keyUrl = "console.groq.com/keys";
+                else if (provider.Contains("OpenAI", StringComparison.OrdinalIgnoreCase))
+                    keyUrl = "platform.openai.com/api-keys";
+                else if (provider.Contains("DeepSeek", StringComparison.OrdinalIgnoreCase))
+                    keyUrl = "platform.deepseek.com";
+                else if (provider.Contains("OpenRouter", StringComparison.OrdinalIgnoreCase))
+                    keyUrl = "openrouter.ai/keys";
+
+                yield return $"Please enter your **{provider} API Key** in Settings (⚙️ icon) to start chatting!\n\n" +
+                             $"You can get an API key at **{keyUrl}**.";
                 yield break;
             }
 
             IAsyncEnumerable<string> stream;
-            if (IsGeminiApi(config.ApiUrl))
+            if (config.AiProvider.Contains("Gemini", StringComparison.OrdinalIgnoreCase) || IsGeminiApi(config.ApiUrl))
             {
                 stream = StreamGeminiAsync(conversationHistory, config);
             }
@@ -58,10 +73,11 @@ namespace InvisibleChat
         // ──────────────────────────────────────────────────────────────────────
         private async IAsyncEnumerable<string> StreamGeminiAsync(List<ChatMessage> history, AppConfig config)
         {
+            string apiKey = config.GetCurrentApiKey();
             string model = string.IsNullOrWhiteSpace(config.ModelName) || config.ModelName.Equals("gemini-2.0-flash", StringComparison.OrdinalIgnoreCase) || config.ModelName.Equals("gemini-1.5-flash", StringComparison.OrdinalIgnoreCase)
                 ? "gemini-3.8-flash"
                 : config.ModelName;
-            string url = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:streamGenerateContent?alt=sse&key={config.ApiKey}";
+            string url = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:streamGenerateContent?alt=sse&key={apiKey}";
 
             var contents = new List<object>();
             foreach (var msg in history)
@@ -151,17 +167,22 @@ namespace InvisibleChat
             {
                 var errorText = await response.Content.ReadAsStringAsync();
 
-                // If model is retired (404), high demand (503), rate-limited (429), or unavailable, automatically fallback to stable gemini-3.8-flash
-                if ((response.StatusCode == System.Net.HttpStatusCode.NotFound ||
-                     response.StatusCode == System.Net.HttpStatusCode.ServiceUnavailable ||
-                     (int)response.StatusCode == 429 ||
-                     errorText.Contains("no longer available", StringComparison.OrdinalIgnoreCase) ||
-                     errorText.Contains("high demand", StringComparison.OrdinalIgnoreCase)) &&
-                    !model.Equals("gemini-3.8-flash", StringComparison.OrdinalIgnoreCase))
-                {
-                    yield return $"*[Note: {model} is unavailable ({response.StatusCode}). Auto-switched to gemini-3.8-flash]*\n\n";
+                // If model is retired (404), high demand (503), rate-limited (429), or unavailable, automatically fallback
+                bool isRetriable = response.StatusCode == System.Net.HttpStatusCode.NotFound ||
+                                   response.StatusCode == System.Net.HttpStatusCode.ServiceUnavailable ||
+                                   (int)response.StatusCode == 429 ||
+                                   errorText.Contains("no longer available", StringComparison.OrdinalIgnoreCase) ||
+                                   errorText.Contains("high demand", StringComparison.OrdinalIgnoreCase);
 
-                    string fallbackUrl = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:streamGenerateContent?alt=sse&key={config.ApiKey}";
+                if (isRetriable)
+                {
+                    string fallbackModel = model.Equals("gemini-3.8-flash", StringComparison.OrdinalIgnoreCase)
+                        ? "gemini-2.5-flash"
+                        : "gemini-3.8-flash";
+
+                    yield return $"*[Note: {model} temporarily busy/unavailable ({response.StatusCode}). Auto-switching to {fallbackModel}]*\n\n";
+
+                    string fallbackUrl = $"https://generativelanguage.googleapis.com/v1beta/models/{fallbackModel}:streamGenerateContent?alt=sse&key={apiKey}";
                     using var fbRequest = new HttpRequestMessage(HttpMethod.Post, fallbackUrl)
                     {
                         Content = new StringContent(json, Encoding.UTF8, "application/json")
@@ -215,7 +236,9 @@ namespace InvisibleChat
                     }
                 }
 
-                yield return $"⚠️ Gemini Error ({response.StatusCode}): {errorText}";
+                yield return $"⚠️ Gemini Error ({response.StatusCode}): {errorText}\n\n" +
+                             "💡 *Tip: Google's free tier models occasionally experience high demand spikes. " +
+                             "You can switch to Groq (Free & Ultra Fast) or OpenAI in Settings (⚙️ icon).*";
                 yield break;
             }
 
@@ -262,11 +285,53 @@ namespace InvisibleChat
         }
 
         // ──────────────────────────────────────────────────────────────────────
-        // OPENAI STREAMING (stream: true)
+        // OPENAI-COMPATIBLE STREAMING (Groq, OpenAI, DeepSeek, OpenRouter, Ollama)
         // ──────────────────────────────────────────────────────────────────────
+        private static string ResolveBaseUrl(AppConfig config)
+        {
+            if (!string.IsNullOrWhiteSpace(config.ApiUrl) &&
+                !config.ApiUrl.Contains("googleapis.com", StringComparison.OrdinalIgnoreCase))
+            {
+                return config.ApiUrl;
+            }
+
+            if (config.AiProvider.Contains("Groq", StringComparison.OrdinalIgnoreCase))
+                return "https://api.groq.com/openai/v1";
+            if (config.AiProvider.Contains("DeepSeek", StringComparison.OrdinalIgnoreCase))
+                return "https://api.deepseek.com/v1";
+            if (config.AiProvider.Contains("OpenRouter", StringComparison.OrdinalIgnoreCase))
+                return "https://openrouter.ai/api/v1";
+            if (config.AiProvider.Contains("Custom", StringComparison.OrdinalIgnoreCase) || config.AiProvider.Contains("Local", StringComparison.OrdinalIgnoreCase))
+                return "http://localhost:11434/v1";
+
+            return "https://api.openai.com/v1";
+        }
+
+        private static string ResolveModelName(AppConfig config)
+        {
+            if (!string.IsNullOrWhiteSpace(config.ModelName) &&
+                !config.ModelName.StartsWith("gemini-", StringComparison.OrdinalIgnoreCase))
+            {
+                return config.ModelName;
+            }
+
+            if (config.AiProvider.Contains("Groq", StringComparison.OrdinalIgnoreCase))
+                return "llama-3.3-70b-versatile";
+            if (config.AiProvider.Contains("DeepSeek", StringComparison.OrdinalIgnoreCase))
+                return "deepseek-chat";
+            if (config.AiProvider.Contains("OpenRouter", StringComparison.OrdinalIgnoreCase))
+                return "meta-llama/llama-3.3-70b-instruct";
+            if (config.AiProvider.Contains("Custom", StringComparison.OrdinalIgnoreCase) || config.AiProvider.Contains("Local", StringComparison.OrdinalIgnoreCase))
+                return "llama3";
+
+            return "gpt-4o";
+        }
+
         private async IAsyncEnumerable<string> StreamOpenAIAsync(List<ChatMessage> history, AppConfig config)
         {
-            string url = $"{config.ApiUrl.TrimEnd('/')}/chat/completions";
+            string baseUrl = ResolveBaseUrl(config);
+            string url = $"{baseUrl.TrimEnd('/')}/chat/completions";
+            string model = ResolveModelName(config);
 
             var messages = new List<object>();
             if (!string.IsNullOrWhiteSpace(config.SystemPrompt))
@@ -300,7 +365,7 @@ namespace InvisibleChat
 
             var requestBody = new
             {
-                model = config.ModelName,
+                model = model,
                 messages,
                 temperature = 0.7,
                 stream = true
@@ -311,7 +376,18 @@ namespace InvisibleChat
             {
                 Content = new StringContent(json, Encoding.UTF8, "application/json")
             };
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", config.ApiKey);
+
+            string activeKey = config.GetCurrentApiKey();
+            if (!string.IsNullOrWhiteSpace(activeKey))
+            {
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", activeKey);
+            }
+
+            if (config.AiProvider.Contains("OpenRouter", StringComparison.OrdinalIgnoreCase))
+            {
+                request.Headers.Add("HTTP-Referer", "https://translucent-livid.vercel.app");
+                request.Headers.Add("X-Title", "Translucent Assistant");
+            }
             request.Headers.Add("User-Agent", "InvisibleChatApp");
 
             HttpResponseMessage? response = null;
@@ -327,14 +403,14 @@ namespace InvisibleChat
 
             if (connError != null || response == null)
             {
-                yield return $"⚠️ Connection error: {connError ?? "Failed to connect"}";
+                yield return $"⚠️ Connection error to {config.AiProvider}: {connError ?? "Failed to connect"}";
                 yield break;
             }
 
             if (!response.IsSuccessStatusCode)
             {
                 var errorText = await response.Content.ReadAsStringAsync();
-                yield return $"⚠️ OpenAI Error ({response.StatusCode}): {errorText}";
+                yield return $"⚠️ {config.AiProvider} Error ({response.StatusCode}): {errorText}";
                 yield break;
             }
 

@@ -1368,7 +1368,7 @@
             <Grid Grid.Row="0" Grid.RowSpan="3" Background="#DD0C0C0E"
                   Visibility="{Binding IsSettingsOpen, Converter={StaticResource BoolToVis}}">
                 <Border Background="#1E1E20" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
-                        CornerRadius="8" Width="320" Height="470"
+                        CornerRadius="8" Width="340" Height="510"
                         HorizontalAlignment="Center" VerticalAlignment="Center" Padding="18">
                     <Grid>
                         <Grid.RowDefinitions>
@@ -1383,25 +1383,78 @@
                         <ScrollViewer Grid.Row="1" Style="{StaticResource ModernScrollViewer}"
                                       Margin="0,0,-8,0" Padding="0,0,8,0">
                             <StackPanel>
-                                <TextBlock Text="Gemini API Key" Foreground="{StaticResource TextMuted}"
+                                <!-- AI Provider Selector -->
+                                <TextBlock Text="AI Provider / Engine" Foreground="{StaticResource TextMuted}"
                                            FontSize="11" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                <ComboBox ItemsSource="{Binding AvailableProviders}"
+                                          SelectedItem="{Binding AiProvider, Mode=TwoWay}"
+                                          Style="{StaticResource ModernComboBox}"
+                                          Margin="0,0,0,12" WindowChrome.IsHitTestVisibleInChrome="True"/>
+
+                                <!-- Dynamic API Key with Link to Get Key -->
+                                <Grid Margin="0,0,0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="{Binding ApiKeyLabel}" Foreground="{StaticResource TextMuted}"
+                                               FontSize="11" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                    <Button Grid.Column="1" Click="OpenApiKeyHelper_Click"
+                                            Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand"
+                                            WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="Open API Key Dashboard in browser">
+                                        <TextBlock Text="Get Key ↗" Foreground="#818CF8" FontSize="10.5" FontWeight="SemiBold"/>
+                                    </Button>
+                                </Grid>
                                 <TextBox Style="{StaticResource ModernTextBox}"
-                                         Tag="Paste your Gemini API key..."
+                                         Tag="{Binding ApiKeyPlaceholder}"
                                          Text="{Binding ApiKey, UpdateSourceTrigger=PropertyChanged}"
                                          Margin="0,0,0,12" WindowChrome.IsHitTestVisibleInChrome="True"/>
 
-                                <TextBlock Text="API Endpoint" Foreground="{StaticResource TextMuted}"
-                                           FontSize="11" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                <!-- Model Name with Quick Selection Chips -->
+                                <Grid Margin="0,0,0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Model Name" Foreground="{StaticResource TextMuted}"
+                                               FontSize="11" FontWeight="SemiBold"/>
+                                    <TextBlock Grid.Column="1" Text="Quick Select ▾" Foreground="#71717A" FontSize="10"/>
+                                </Grid>
                                 <TextBox Style="{StaticResource ModernTextBox}"
-                                         Tag="https://generativelanguage.googleapis.com/v1beta"
-                                         Text="{Binding ApiUrl, UpdateSourceTrigger=PropertyChanged}"
-                                         Margin="0,0,0,12" WindowChrome.IsHitTestVisibleInChrome="True"/>
-
-                                <TextBlock Text="Model Name" Foreground="{StaticResource TextMuted}"
-                                           FontSize="11" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                                <TextBox Style="{StaticResource ModernTextBox}"
-                                         Tag="gemini-3.8-flash"
                                          Text="{Binding ModelName, UpdateSourceTrigger=PropertyChanged}"
+                                         Margin="0,0,0,4" WindowChrome.IsHitTestVisibleInChrome="True"/>
+
+                                <!-- Suggested Model Pills/Chips -->
+                                <ItemsControl ItemsSource="{Binding SuggestedModels}" Margin="0,0,0,12">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel Orientation="Horizontal"/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Button Content="{Binding}"
+                                                    Command="{Binding DataContext.SelectSuggestedModelCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                    CommandParameter="{Binding}"
+                                                    Background="#27272A" Foreground="#A1A1AA" BorderBrush="#3F3F46" BorderThickness="1"
+                                                    FontSize="9.5" FontWeight="Medium" Margin="0,2,5,2" Padding="6,2" Cursor="Hand"
+                                                    WindowChrome.IsHitTestVisibleInChrome="True">
+                                                <Button.Resources>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="CornerRadius" Value="4"/>
+                                                    </Style>
+                                                </Button.Resources>
+                                            </Button>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <!-- API Endpoint (Base URL) -->
+                                <TextBlock Text="API Endpoint (Base URL)" Foreground="{StaticResource TextMuted}"
+                                           FontSize="11" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                <TextBox Style="{StaticResource ModernTextBox}"
+                                         Tag="https://api.openai.com/v1"
+                                         Text="{Binding ApiUrl, UpdateSourceTrigger=PropertyChanged}"
                                          Margin="0,0,0,12" WindowChrome.IsHitTestVisibleInChrome="True"/>
 
                                 <TextBlock Text="System Prompt" Foreground="{StaticResource TextMuted}"

@@ -79,7 +79,12 @@ namespace InvisibleChat
         private string _cloudSyncStatus = "☁️ Cloud Ready";
 
         // Settings Properties (bound to Settings UI)
+        private string _aiProvider = "Google Gemini";
         private string _apiKey = string.Empty;
+        private string _apiKeyLabel = "Gemini API Key (Google AI Studio)";
+        private string _apiKeyPlaceholder = "AIzaSy...";
+        private string _apiKeyHelperUrl = "https://aistudio.google.com/apikey";
+        private ObservableCollection<string> _suggestedModels = new();
         private string _apiUrl = string.Empty;
         private string _modelName = string.Empty;
         private string _systemPrompt = string.Empty;
@@ -192,6 +197,13 @@ namespace InvisibleChat
             SnipScreenCommand = new RelayCommand(_ => RequestSnipScreen?.Invoke());
             ToggleSplitViewCommand = new RelayCommand(_ => IsSplitView = !IsSplitView);
             ToggleGhostModeCommand = new RelayCommand(_ => IsGhostMode = !IsGhostMode);
+            SelectSuggestedModelCommand = new RelayCommand(param =>
+            {
+                if (param is string model)
+                {
+                    ModelName = model;
+                }
+            });
         }
 
         // Properties
@@ -321,6 +333,52 @@ namespace InvisibleChat
         }
 
         // Settings bindings
+        public List<string> AvailableProviders { get; } = new()
+        {
+            "Google Gemini",
+            "Groq (Free & Ultra Fast)",
+            "OpenAI (GPT-4o)",
+            "DeepSeek",
+            "OpenRouter (All-in-One)",
+            "Custom / Local (Ollama)"
+        };
+
+        public string AiProvider
+        {
+            get => _aiProvider;
+            set
+            {
+                if (SetField(ref _aiProvider, value))
+                {
+                    OnProviderChanged(value);
+                }
+            }
+        }
+
+        public string ApiKeyLabel
+        {
+            get => _apiKeyLabel;
+            set => SetField(ref _apiKeyLabel, value);
+        }
+
+        public string ApiKeyPlaceholder
+        {
+            get => _apiKeyPlaceholder;
+            set => SetField(ref _apiKeyPlaceholder, value);
+        }
+
+        public string ApiKeyHelperUrl
+        {
+            get => _apiKeyHelperUrl;
+            set => SetField(ref _apiKeyHelperUrl, value);
+        }
+
+        public ObservableCollection<string> SuggestedModels
+        {
+            get => _suggestedModels;
+            set => SetField(ref _suggestedModels, value);
+        }
+
         public string ApiKey
         {
             get => _apiKey;
@@ -378,10 +436,101 @@ namespace InvisibleChat
         public ICommand SnipScreenCommand { get; }
         public ICommand ToggleSplitViewCommand { get; }
         public ICommand ToggleGhostModeCommand { get; }
+        public ICommand SelectSuggestedModelCommand { get; }
+
+        private void OnProviderChanged(string newProvider)
+        {
+            // Save the current typed key to the previous provider slot
+            _config.SetCurrentApiKey(ApiKey);
+            _config.AiProvider = newProvider;
+
+            // Load the newly selected provider's key
+            ApiKey = _config.GetCurrentApiKey();
+
+            RefreshProviderMetadata(newProvider, updateDefaults: true);
+        }
+
+        private void RefreshProviderMetadata(string provider, bool updateDefaults)
+        {
+            if (provider.Contains("Groq", StringComparison.OrdinalIgnoreCase))
+            {
+                ApiKeyLabel = "Groq API Key (Free & Ultra Fast)";
+                ApiKeyPlaceholder = "gsk_...";
+                ApiKeyHelperUrl = "https://console.groq.com/keys";
+                SuggestedModels = new ObservableCollection<string> { "llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768" };
+                if (updateDefaults)
+                {
+                    ModelName = "llama-3.3-70b-versatile";
+                    ApiUrl = "https://api.groq.com/openai/v1";
+                }
+            }
+            else if (provider.Contains("OpenAI", StringComparison.OrdinalIgnoreCase))
+            {
+                ApiKeyLabel = "OpenAI API Key";
+                ApiKeyPlaceholder = "sk-proj-...";
+                ApiKeyHelperUrl = "https://platform.openai.com/api-keys";
+                SuggestedModels = new ObservableCollection<string> { "gpt-4o", "gpt-4o-mini", "o3-mini" };
+                if (updateDefaults)
+                {
+                    ModelName = "gpt-4o";
+                    ApiUrl = "https://api.openai.com/v1";
+                }
+            }
+            else if (provider.Contains("DeepSeek", StringComparison.OrdinalIgnoreCase))
+            {
+                ApiKeyLabel = "DeepSeek API Key";
+                ApiKeyPlaceholder = "sk-...";
+                ApiKeyHelperUrl = "https://platform.deepseek.com";
+                SuggestedModels = new ObservableCollection<string> { "deepseek-chat", "deepseek-reasoner" };
+                if (updateDefaults)
+                {
+                    ModelName = "deepseek-chat";
+                    ApiUrl = "https://api.deepseek.com/v1";
+                }
+            }
+            else if (provider.Contains("OpenRouter", StringComparison.OrdinalIgnoreCase))
+            {
+                ApiKeyLabel = "OpenRouter API Key (Any Model)";
+                ApiKeyPlaceholder = "sk-or-v1-...";
+                ApiKeyHelperUrl = "https://openrouter.ai/keys";
+                SuggestedModels = new ObservableCollection<string> { "meta-llama/llama-3.3-70b-instruct", "deepseek/deepseek-chat", "anthropic/claude-3.5-sonnet" };
+                if (updateDefaults)
+                {
+                    ModelName = "meta-llama/llama-3.3-70b-instruct";
+                    ApiUrl = "https://openrouter.ai/api/v1";
+                }
+            }
+            else if (provider.Contains("Custom", StringComparison.OrdinalIgnoreCase) || provider.Contains("Local", StringComparison.OrdinalIgnoreCase))
+            {
+                ApiKeyLabel = "Custom / Ollama Key (Optional)";
+                ApiKeyPlaceholder = "Leave empty for Ollama...";
+                ApiKeyHelperUrl = "http://localhost:11434";
+                SuggestedModels = new ObservableCollection<string> { "llama3", "mistral", "deepseek-r1" };
+                if (updateDefaults)
+                {
+                    ModelName = "llama3";
+                    ApiUrl = "http://localhost:11434/v1";
+                }
+            }
+            else // Default: Google Gemini
+            {
+                ApiKeyLabel = "Gemini API Key (Google AI Studio)";
+                ApiKeyPlaceholder = "AIzaSy...";
+                ApiKeyHelperUrl = "https://aistudio.google.com/apikey";
+                SuggestedModels = new ObservableCollection<string> { "gemini-3.8-flash", "gemini-2.5-flash", "gemini-3.5-flash-lite" };
+                if (updateDefaults)
+                {
+                    ModelName = "gemini-3.8-flash";
+                    ApiUrl = "https://generativelanguage.googleapis.com/v1beta";
+                }
+            }
+        }
 
         private void LoadConfigToFields()
         {
-            ApiKey = _config.ApiKey;
+            _aiProvider = _config.AiProvider;
+            OnPropertyChanged(nameof(AiProvider));
+            ApiKey = _config.GetCurrentApiKey();
             ApiUrl = _config.ApiUrl;
             ModelName = _config.ModelName;
             SystemPrompt = _config.SystemPrompt;
@@ -390,6 +539,7 @@ namespace InvisibleChat
             _isSplitView = _config.IsSplitView;
             _autoCopilot = _config.AutoCopilot;
             _audioSourceMic = _config.AudioSourceMic;
+            RefreshProviderMetadata(_aiProvider, updateDefaults: false);
         }
 
         private void LoadSessionMessages()
@@ -710,7 +860,8 @@ namespace InvisibleChat
 
         private void SaveSettings()
         {
-            _config.ApiKey = ApiKey;
+            _config.AiProvider = AiProvider;
+            _config.SetCurrentApiKey(ApiKey);
             _config.ApiUrl = ApiUrl;
             _config.ModelName = ModelName;
             _config.SystemPrompt = SystemPrompt;

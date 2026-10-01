@@ -7,12 +7,53 @@ namespace InvisibleChat
 {
     public class AppConfig
     {
+        public string AiProvider { get; set; } = "Google Gemini";
         public string ApiKey { get; set; } = string.Empty;
+        public string GeminiApiKey { get; set; } = string.Empty;
+        public string GroqApiKey { get; set; } = string.Empty;
+        public string OpenAiApiKey { get; set; } = string.Empty;
+        public string DeepSeekApiKey { get; set; } = string.Empty;
+        public string OpenRouterApiKey { get; set; } = string.Empty;
+        public string CustomApiKey { get; set; } = string.Empty;
+
         public string ApiUrl { get; set; } = "https://generativelanguage.googleapis.com/v1beta";
         public string ModelName { get; set; } = "gemini-3.8-flash";
         public string SystemPrompt { get; set; } = "You are a concise, sharp stealth assistant. Provide direct answers, solutions, and code without unnecessary fluff.";
         public bool Topmost { get; set; } = true;
         public double WindowOpacity { get; set; } = 0.92;
+
+        public string GetCurrentApiKey()
+        {
+            if (AiProvider.Contains("Groq", StringComparison.OrdinalIgnoreCase))
+                return !string.IsNullOrWhiteSpace(GroqApiKey) ? GroqApiKey : ApiKey;
+            if (AiProvider.Contains("OpenAI", StringComparison.OrdinalIgnoreCase))
+                return !string.IsNullOrWhiteSpace(OpenAiApiKey) ? OpenAiApiKey : ApiKey;
+            if (AiProvider.Contains("DeepSeek", StringComparison.OrdinalIgnoreCase))
+                return !string.IsNullOrWhiteSpace(DeepSeekApiKey) ? DeepSeekApiKey : ApiKey;
+            if (AiProvider.Contains("OpenRouter", StringComparison.OrdinalIgnoreCase))
+                return !string.IsNullOrWhiteSpace(OpenRouterApiKey) ? OpenRouterApiKey : ApiKey;
+            if (AiProvider.Contains("Custom", StringComparison.OrdinalIgnoreCase) || AiProvider.Contains("Local", StringComparison.OrdinalIgnoreCase))
+                return !string.IsNullOrWhiteSpace(CustomApiKey) ? CustomApiKey : ApiKey;
+
+            return !string.IsNullOrWhiteSpace(GeminiApiKey) ? GeminiApiKey : ApiKey;
+        }
+
+        public void SetCurrentApiKey(string key)
+        {
+            ApiKey = key;
+            if (AiProvider.Contains("Groq", StringComparison.OrdinalIgnoreCase))
+                GroqApiKey = key;
+            else if (AiProvider.Contains("OpenAI", StringComparison.OrdinalIgnoreCase))
+                OpenAiApiKey = key;
+            else if (AiProvider.Contains("DeepSeek", StringComparison.OrdinalIgnoreCase))
+                DeepSeekApiKey = key;
+            else if (AiProvider.Contains("OpenRouter", StringComparison.OrdinalIgnoreCase))
+                OpenRouterApiKey = key;
+            else if (AiProvider.Contains("Custom", StringComparison.OrdinalIgnoreCase) || AiProvider.Contains("Local", StringComparison.OrdinalIgnoreCase))
+                CustomApiKey = key;
+            else
+                GeminiApiKey = key;
+        }
         
         // Session & Layout Properties
         public List<string> OpenTabsUrls { get; set; } = new();
@@ -71,6 +112,16 @@ namespace InvisibleChat
                             config.ModelName.Equals("gemini-1.5-flash", StringComparison.OrdinalIgnoreCase))
                         {
                             config.ModelName = "gemini-3.8-flash";
+                            needsSave = true;
+                        }
+                        if (!string.IsNullOrEmpty(config.ApiKey) && string.IsNullOrEmpty(config.GeminiApiKey))
+                        {
+                            config.GeminiApiKey = config.ApiKey;
+                            needsSave = true;
+                        }
+                        if (string.IsNullOrWhiteSpace(config.AiProvider))
+                        {
+                            config.AiProvider = "Google Gemini";
                             needsSave = true;
                         }
                         if (needsSave)
