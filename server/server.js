@@ -179,7 +179,7 @@ async function upsertAndAuthenticateUser(email, name, avatarUrl, googleId, devic
             expiresAt: user.expires_at,
             createdAt: user.created_at,
             deviceId: deviceId || '',
-            deviceName: deviceName || 'ROHIT_MACHINE'
+            deviceName: deviceName || 'Windows PC'
         }
     };
 }
@@ -307,35 +307,37 @@ app.get('/api/subscription/status', verifyUserToken, async (req, res) => {
             }
         }
 
-        const clientDeviceId = req.headers['x-device-id'] || req.query.deviceId || req.user.deviceId || '';
-        const clientDeviceName = req.headers['x-device-name'] || req.query.deviceName || '';
+        const clientDeviceId = (req.headers['x-device-id'] || req.query.deviceId || req.user.deviceId || '').trim();
+        const clientDeviceName = (req.headers['x-device-name'] || req.query.deviceName || '').trim();
 
         // Single Active Device Enforcement:
         let activeSession = await db.getActiveDeviceSession(user.id);
         if (activeSession) {
-            const tokenSessionId = req.user.sessionId;
+            const tokenSessionId = (req.user.sessionId || '').trim();
+            const activeSessionId = (activeSession.sessionId || '').trim();
+            const activeDevId = (activeSession.deviceId || '').trim();
+            const currDevId = clientDeviceId;
 
-            // Session ID mismatch means this token belongs to an older session replaced by a newer login
-            if (tokenSessionId && activeSession.sessionId && tokenSessionId !== activeSession.sessionId) {
+            // Multi-device conflict ONLY triggers if:
+            // 1. Both active session and incoming request have a registered device ID, AND they differ (distinct physical devices)
+            // 2. AND the incoming token does NOT match the newer active session (meaning this is the older superseded device)
+            const isDifferentDevice = Boolean(activeDevId && currDevId && activeDevId.toLowerCase() !== currDevId.toLowerCase());
+            const isSupersededSession = Boolean(activeSessionId && tokenSessionId && tokenSessionId !== activeSessionId);
+
+            if (isDifferentDevice && isSupersededSession) {
+                const otherDevName = activeSession.deviceName ? ` ("${activeSession.deviceName}")` : '';
                 return res.status(409).json({
                     error: 'device_conflict',
-                    message: 'Your Translucent Pro account was signed in on another device. Only 1 active device is permitted at a time.'
-                });
-            }
-
-            if (clientDeviceId && activeSession.deviceId && clientDeviceId !== activeSession.deviceId) {
-                return res.status(409).json({
-                    error: 'device_conflict',
-                    message: 'Your Translucent Pro account was signed in on another device. Only 1 active device is permitted at a time.'
+                    message: `Your Translucent Pro account was signed in on another device${otherDevName}. Only 1 active device is permitted at a time.`
                 });
             }
         }
 
-        // Update active device name & ID in database/session if provided
-        if (clientDeviceId || clientDeviceName) {
-            const effDevId = clientDeviceId || (activeSession ? activeSession.deviceId : '');
-            const effSessId = req.user.sessionId || (activeSession ? activeSession.sessionId : '');
-            const effDevName = clientDeviceName || (activeSession ? activeSession.deviceName : 'ROHIT_MACHINE');
+        // Update active device name & ID in database/session
+        const effDevId = clientDeviceId || (activeSession ? activeSession.deviceId : '');
+        const effSessId = req.user.sessionId || (activeSession ? activeSession.sessionId : '');
+        const effDevName = clientDeviceName || (activeSession ? activeSession.deviceName : 'Windows PC');
+        if (effDevId || effDevName || effSessId) {
             await db.setActiveDeviceSession(user.id, effDevId, effSessId, effDevName);
             activeSession = await db.getActiveDeviceSession(user.id);
         }
@@ -364,8 +366,8 @@ app.get('/api/subscription/status', verifyUserToken, async (req, res) => {
                 plan: user.plan,
                 expiresAt: user.expires_at,
                 createdAt: user.created_at,
-                deviceId: (activeSession && activeSession.deviceId) || user.active_device_id || clientDeviceId || '59fdcf409df63e1f',
-                deviceName: (activeSession && activeSession.deviceName) || user.active_device_name || clientDeviceName || 'ROHIT_MACHINE'
+                deviceId: (activeSession && activeSession.deviceId) || user.active_device_id || clientDeviceId || '',
+                deviceName: (activeSession && activeSession.deviceName) || user.active_device_name || clientDeviceName || 'Windows PC'
             }
         });
     } catch (error) {

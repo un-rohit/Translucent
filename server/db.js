@@ -80,12 +80,12 @@ if (isSupabaseEnabled) {
     try { sqliteDb.exec(`ALTER TABLE users ADD COLUMN active_device_name TEXT;`); } catch (_) {}
     try { sqliteDb.exec(`ALTER TABLE users ADD COLUMN active_session_token TEXT;`); } catch (_) {}
 
-    // Ensure Rohit Kumar is always pre-approved with Lifetime Pro & active device
+    // Ensure Rohit Kumar is always pre-approved with Lifetime Pro
     try {
         sqliteDb.prepare(`
-            INSERT INTO users (id, email, name, status, plan, created_at, last_active_at, active_device_id, active_device_name)
-            VALUES (1, 'un.rohitkumar@gmail.com', 'Rohit Kumar', 'active', 'lifetime', datetime('now'), datetime('now'), '59fdcf409df63e1f', 'ROHIT_MACHINE')
-            ON CONFLICT(email) DO UPDATE SET status = 'active', plan = 'lifetime', active_device_id = COALESCE(excluded.active_device_id, active_device_id), active_device_name = COALESCE(excluded.active_device_name, active_device_name)
+            INSERT INTO users (id, email, name, status, plan, created_at, last_active_at)
+            VALUES (1, 'un.rohitkumar@gmail.com', 'Rohit Kumar', 'active', 'lifetime', datetime('now'), datetime('now'))
+            ON CONFLICT(email) DO UPDATE SET status = 'active', plan = 'lifetime'
         `).run();
     } catch (_) {}
 }

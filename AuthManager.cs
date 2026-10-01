@@ -240,8 +240,8 @@ namespace InvisibleChat
                 _loopbackListener.Prefixes.Add($"http://127.0.0.1:{LoopbackPort}/callback/");
                 _loopbackListener.Start();
 
-                // Open default browser to the web login portal with deviceId
-                string loginUrl = $"{Config.AuthServerUrl.TrimEnd('/')}/login.html?port={LoopbackPort}&deviceId={Uri.EscapeDataString(Config.DeviceId)}";
+                // Open default browser to the web login portal with deviceId and deviceName
+                string loginUrl = $"{Config.AuthServerUrl.TrimEnd('/')}/login.html?port={LoopbackPort}&deviceId={Uri.EscapeDataString(Config.DeviceId)}&deviceName={Uri.EscapeDataString(Environment.MachineName)}";
                 Process.Start(new ProcessStartInfo
                 {
                     FileName = loginUrl,
