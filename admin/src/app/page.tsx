@@ -83,7 +83,7 @@ export default function LandingPage() {
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center gap-6 text-xs font-semibold text-zinc-300">
             <a href="#features" className="hover:text-purple-300 transition-colors">Features</a>
-            <a href="#showcase" className="hover:text-purple-300 transition-colors">Interface</a>
+            <a href="#screenshots" className="hover:text-purple-300 transition-colors">Screenshots</a>
             <a href="#ai-models" className="hover:text-purple-300 transition-colors">AI Models</a>
             <a href="#how-it-works" className="hover:text-purple-300 transition-colors">How It Works</a>
             <Link href="/docs" className="text-purple-400 hover:text-purple-300 transition-colors font-bold">Docs</Link>
@@ -430,6 +430,67 @@ export default function LandingPage() {
               Supabase + Google OAuth 2.0
             </span>
           </div>
+        </div>
+      </section>
+
+      {/* ─── Real App Screenshots Gallery ─── */}
+      <section id="screenshots" className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 border-t border-white/[0.06]">
+        <div className="text-center max-w-3xl mx-auto mb-12">
+          <h2 className="text-xs uppercase tracking-widest font-bold text-purple-400 mb-3">Real App Screenshots</h2>
+          <h3 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
+            See Translucent in Action
+          </h3>
+          <p className="mt-4 text-zinc-400 text-sm">
+            Every pixel of your workflow, invisible to screen capture — but visible to you.
+          </p>
+        </div>
+
+        {/* Screenshot Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[
+            { src: '/Translucent/Full Invisible Broswer.png', label: 'Full Invisible Browser', caption: 'Float a full browser overlay above any app — completely hidden from screen capture.', tag: '🌐 Browser' },
+            { src: '/Translucent/chat with AI .png', label: 'Chat with AI', caption: 'Ask Gemini, GPT, or Groq anything — directly inside your translucent floating panel.', tag: '🤖 AI Chat' },
+            { src: '/Translucent/Ghost mode.png', label: 'Ghost Mode Active', caption: 'Ghost Mode makes clicks pass through the window — it becomes truly invisible.', tag: '👻 Ghost Mode' },
+            { src: '/Translucent/settings.png', label: 'AI Provider Settings', caption: 'Switch between Gemini, GPT, Groq, DeepSeek or OpenRouter with your own API key.', tag: '⚙️ Settings' },
+            { src: '/Translucent/preloaded prompts.png', label: 'Preloaded Prompts', caption: 'One-click smart prompts for interviews, code review, debugging, and more.', tag: '⚡ Prompts' },
+            { src: '/Translucent/audio input settings.png', label: 'Audio Input Settings', caption: 'Route meeting audio or microphone into AI context for live captions.', tag: '🎙️ Audio' },
+            { src: '/Translucent/built-in broswer.png', label: 'Built-in Browser', caption: 'Dual WebView2 multi-tab browser — browse docs and AI side by side.', tag: '📑 Multi-Tab' },
+            { src: '/Translucent/Device susbscrition .png', label: 'Device & Subscription', caption: 'Manage your licensed devices and subscription status from one place.', tag: '🔐 License' },
+          ].map((shot, i) => (
+            <div
+              key={i}
+              className="group relative rounded-2xl overflow-hidden border border-white/[0.08] bg-[#121217]/80 hover:border-purple-500/40 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-purple-950/40"
+            >
+              {/* Screenshot Image */}
+              <div className="relative w-full aspect-video overflow-hidden bg-black/40">
+                <img
+                  src={shot.src}
+                  alt={shot.label}
+                  className="w-full h-full object-cover object-top group-hover:scale-[1.04] transition-transform duration-500"
+                />
+                {/* Overlay on hover */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-3">
+                  <p className="text-white text-[11px] leading-relaxed">{shot.caption}</p>
+                </div>
+              </div>
+              {/* Card Footer */}
+              <div className="px-3 py-2.5 flex items-center justify-between">
+                <span className="text-xs font-semibold text-zinc-200">{shot.label}</span>
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/25">
+                  {shot.tag}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Store Banner */}
+        <div className="mt-12 rounded-3xl overflow-hidden border border-white/[0.10] shadow-2xl shadow-purple-950/30">
+          <img
+            src="/Translucent/store-banner.jpg"
+            alt="Translucent — Your Invisible AI Assistant for Windows"
+            className="w-full object-cover"
+          />
         </div>
       </section>
 
