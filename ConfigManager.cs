@@ -33,6 +33,13 @@ namespace InvisibleChat
         public bool IsSubscribedCached { get; set; } = false;
         public string SubscriptionStatus { get; set; } = "pending";
         public string DeviceId { get; set; } = string.Empty;
+
+        // Cloud Storage & Sync (Cloudinary)
+        public string CloudinaryCloudName { get; set; } = "frx537fs";
+        public string CloudinaryApiKey { get; set; } = "949461777111196";
+        public string CloudinaryApiSecret { get; set; } = "XOglkgYa9agxDfT4MTdL1nITQk0";
+        public bool EnableCloudSync { get; set; } = true;
+        public DateTime? LastCloudSyncTime { get; set; }
     }
 
     public static class ConfigManager

@@ -2729,6 +2729,67 @@ namespace InvisibleChat
         }
 
         // ─────────────────────────────────────────────────────────────────
+        // CLOUDINARY FILE ATTACHMENTS & DRAG-AND-DROP
+        // ─────────────────────────────────────────────────────────────────
+        private async void AttachFileBtn_Click(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is not MainViewModel vm) return;
+
+            var dialog = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "Select File or Image to Upload to Cloudinary",
+                Filter = "All Supported Files|*.png;*.jpg;*.jpeg;*.gif;*.webp;*.pdf;*.txt;*.json;*.csv;*.docx;*.xlsx;*.zip|Images (*.png;*.jpg;*.jpeg;*.webp)|*.png;*.jpg;*.jpeg;*.webp|Documents & Data|*.pdf;*.txt;*.json;*.csv;*.docx;*.xlsx|All Files (*.*)|*.*",
+                Multiselect = false
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                await vm.AttachFileAsync(dialog.FileName);
+            }
+        }
+
+        private void OpenFileUrl_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is FrameworkElement elem && elem.Tag is string url && !string.IsNullOrWhiteSpace(url))
+            {
+                try
+                {
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = url,
+                        UseShellExecute = true
+                    });
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[OpenFileUrl] Failed to open {url}: {ex.Message}");
+                }
+            }
+        }
+
+        private void ChatPanel_DragOver(object sender, System.Windows.DragEventArgs e)
+        {
+            if (e.Data.GetDataPresent(System.Windows.DataFormats.FileDrop))
+            {
+                e.Effects = System.Windows.DragDropEffects.Copy;
+                e.Handled = true;
+            }
+        }
+
+        private async void ChatPanel_Drop(object sender, System.Windows.DragEventArgs e)
+        {
+            if (e.Data.GetDataPresent(System.Windows.DataFormats.FileDrop))
+            {
+                var files = (string[]?)e.Data.GetData(System.Windows.DataFormats.FileDrop);
+                if (files != null && files.Length > 0 && DataContext is MainViewModel vm)
+                {
+                    e.Handled = true;
+                    await vm.AttachFileAsync(files[0]);
+                }
+            }
+        }
+
+        // ─────────────────────────────────────────────────────────────────
         // LIVE CAPTIONS SPEECH RECOGNITION (OFFLINE)
         // ─────────────────────────────────────────────────────────────────
         private System.Speech.Recognition.SpeechRecognitionEngine? _speechEngine;

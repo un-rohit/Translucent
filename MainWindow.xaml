@@ -551,7 +551,7 @@
                     </Grid.ColumnDefinitions>
 
                     <!-- ─── CHAT PANEL ─── -->
-                    <Grid x:Name="ChatPanel" Grid.Column="0" Grid.ColumnSpan="3">
+                    <Grid x:Name="ChatPanel" Grid.Column="0" Grid.ColumnSpan="3" AllowDrop="True" Drop="ChatPanel_Drop" DragOver="ChatPanel_DragOver">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition x:Name="SidebarColumn" Width="Auto"/>
                             <ColumnDefinition Width="*"/>
@@ -566,6 +566,7 @@
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="*"/>
                                     <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
                                 <ListBox Grid.Row="0" ItemsSource="{Binding Sessions}"
                                          SelectedItem="{Binding SelectedSession}"
@@ -573,13 +574,22 @@
                                          ItemContainerStyle="{StaticResource SidebarListBoxItemStyle}"/>
                                 <Button Grid.Row="1" Style="{StaticResource SecondaryButton}"
                                         Command="{Binding NewSessionCommand}"
-                                        Margin="8,6" Padding="8,7" HorizontalAlignment="Stretch"
+                                        Margin="8,6,8,4" Padding="8,7" HorizontalAlignment="Stretch"
                                         WindowChrome.IsHitTestVisibleInChrome="True">
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                         <TextBlock Text="＋" FontSize="13" Margin="0,0,5,0" VerticalAlignment="Center"/>
                                         <TextBlock Text="New Chat" FontSize="12" VerticalAlignment="Center"/>
                                     </StackPanel>
                                 </Button>
+                                <!-- Cloudinary Cloud Sync Badge -->
+                                <Border Grid.Row="2" Margin="8,0,8,6" Background="#141416" CornerRadius="6" Padding="6,4"
+                                        BorderBrush="#252528" BorderThickness="1">
+                                    <Button Style="{StaticResource IconButton}" Command="{Binding ManualCloudSyncCommand}" 
+                                            HorizontalAlignment="Stretch" WindowChrome.IsHitTestVisibleInChrome="True"
+                                            ToolTip="Cloudinary Cloud Storage (Click to sync now)">
+                                        <TextBlock Text="{Binding CloudSyncStatus}" FontSize="10" Foreground="#A1A1AA" HorizontalAlignment="Center"/>
+                                    </Button>
+                                </Border>
                             </Grid>
                         </Border>
 
@@ -603,12 +613,36 @@
                                                         Background="#252528"
                                                         Padding="11,8" MaxWidth="380">
                                                     <StackPanel>
-                                                        <!-- Vision / Screen Snip image preview if attached -->
-                                                        <Border CornerRadius="6" MaxHeight="180" MaxWidth="320" Margin="0,0,0,6"
+                                                        <!-- Vision / Screen Snip image preview if attached (Stored in Cloudinary) -->
+                                                        <Border CornerRadius="6" MaxHeight="220" MaxWidth="340" Margin="0,0,0,6"
                                                                 HorizontalAlignment="Left" ClipToBounds="True" Background="#111113"
                                                                 Visibility="{Binding HasImage, Converter={StaticResource BoolToVis}}">
-                                                            <Image Source="{Binding ImageBase64, Converter={StaticResource Base64ToImg}}" Stretch="Uniform"/>
+                                                            <Image Source="{Binding DisplayImageSource, Converter={StaticResource Base64ToImg}}" Stretch="Uniform"/>
                                                         </Border>
+
+                                                        <!-- File Attachment Chip (Stored in Cloudinary) -->
+                                                        <Button Style="{StaticResource IconButton}" Click="OpenFileUrl_Click"
+                                                                Tag="{Binding FileUrl}" Cursor="Hand" Padding="0" Margin="0,0,0,6"
+                                                                HorizontalAlignment="Left" WindowChrome.IsHitTestVisibleInChrome="True"
+                                                                Visibility="{Binding HasFile, Converter={StaticResource BoolToVis}}"
+                                                                ToolTip="Open / Download attached file from Cloudinary">
+                                                            <Border CornerRadius="6" Background="#1C1C20" BorderBrush="#383842" BorderThickness="1"
+                                                                    Padding="9,6" MaxWidth="320">
+                                                                <Grid>
+                                                                    <Grid.ColumnDefinitions>
+                                                                        <ColumnDefinition Width="Auto"/>
+                                                                        <ColumnDefinition Width="*"/>
+                                                                        <ColumnDefinition Width="Auto"/>
+                                                                    </Grid.ColumnDefinitions>
+                                                                    <TextBlock Grid.Column="0" Text="📎" FontSize="13" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                                        <TextBlock Text="{Binding FileName}" FontSize="11.5" FontWeight="SemiBold" Foreground="#38BDF8" TextTrimming="CharacterEllipsis"/>
+                                                                        <TextBlock Text="{Binding FileSize}" FontSize="10" Foreground="#94A3B8"/>
+                                                                    </StackPanel>
+                                                                    <TextBlock Grid.Column="2" Text="☁️" FontSize="11" Margin="8,0,0,0" VerticalAlignment="Center" ToolTip="Cloud Stored"/>
+                                                                </Grid>
+                                                            </Border>
+                                                        </Button>
 
                                                         <TextBlock Text="{Binding Content}"
                                                                    TextWrapping="Wrap"
@@ -692,6 +726,7 @@
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBox Grid.Column="0" x:Name="InputTextBox"
                                              Style="{StaticResource ModernTextBox}"
@@ -701,8 +736,17 @@
                                              VerticalScrollBarVisibility="Auto"
                                              PreviewKeyDown="InputTextBox_PreviewKeyDown"
                                              WindowChrome.IsHitTestVisibleInChrome="True"/>
+                                    <!-- Attach File Button (Cloudinary Upload) -->
+                                    <Button Grid.Column="1" x:Name="AttachFileBtn" Style="{StaticResource IconButton}"
+                                            Click="AttachFileBtn_Click"
+                                            Width="32" Height="32" Margin="5,0,0,0" VerticalAlignment="Bottom"
+                                            WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="Attach File / Image to Cloudinary">
+                                        <Path Data="M16.5 6v11.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V5a2.5 2.5 0 0 1 5 0v10.5c0 .83-.67 1.5-1.5 1.5s-1.5-.67-1.5-1.5V6H9v9.5a3 3 0 0 0 6 0V5C15 2.24 12.76 0 10 0S5 2.24 5 5v12.5C5 20.54 7.46 23 10.5 23s5.5-2.46 5.5-5.5V6h-1.5z"
+                                              Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                              Width="13" Height="13" Stretch="Uniform"/>
+                                    </Button>
                                     <!-- Snip Button inside Input Bar -->
-                                    <Button Grid.Column="1" Style="{StaticResource IconButton}"
+                                    <Button Grid.Column="2" Style="{StaticResource IconButton}"
                                             Command="{Binding SnipScreenCommand}"
                                             Width="32" Height="32" Margin="5,0,0,0" VerticalAlignment="Bottom"
                                             WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="Stealth Snip to AI (Ctrl+Shift+S)">
@@ -710,7 +754,7 @@
                                               Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
                                               Width="13" Height="13" Stretch="Uniform"/>
                                     </Button>
-                                    <Button Grid.Column="2" Style="{StaticResource ModernButton}"
+                                    <Button Grid.Column="3" Style="{StaticResource ModernButton}"
                                             Command="{Binding SendMessageCommand}"
                                             Width="36" Height="36" Margin="6,0,0,0" VerticalAlignment="Bottom"
                                             WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="Send (Enter)">

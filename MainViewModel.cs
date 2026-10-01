@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
@@ -74,6 +75,9 @@ namespace InvisibleChat
         private bool _autoCopilot;
         private bool _audioSourceMic;
 
+        // Cloudinary Sync Field
+        private string _cloudSyncStatus = "☁️ Cloud Ready";
+
         // Settings Properties (bound to Settings UI)
         private string _apiKey = string.Empty;
         private string _apiUrl = string.Empty;
@@ -89,6 +93,19 @@ namespace InvisibleChat
         public event Action? RequestSwitchToChat;
 
         public AppConfig Config => _config;
+
+        public string CloudSyncStatus
+        {
+            get => _cloudSyncStatus;
+            set
+            {
+                if (_cloudSyncStatus != value)
+                {
+                    _cloudSyncStatus = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
 
         public MainViewModel()
         {
@@ -119,6 +136,43 @@ namespace InvisibleChat
                 SelectedSession = _sessions.First();
             }
 
+            // Cloudinary Cloud Sync subscriptions
+            ChatHistoryManager.HistoryUpdatedFromCloud += updatedSessions =>
+            {
+                System.Windows.Application.Current?.Dispatcher?.Invoke(() =>
+                {
+                    var currentSelectedId = SelectedSession?.Id;
+                    _sessions.Clear();
+                    foreach (var s in updatedSessions)
+                    {
+                        _sessions.Add(s);
+                    }
+                    if (!string.IsNullOrEmpty(currentSelectedId))
+                    {
+                        SelectedSession = _sessions.FirstOrDefault(s => s.Id == currentSelectedId) ?? _sessions.FirstOrDefault();
+                    }
+                    else if (_sessions.Count > 0)
+                    {
+                        SelectedSession = _sessions.First();
+                    }
+                });
+            };
+
+            ChatHistoryManager.CloudSyncStatusChanged += status =>
+            {
+                System.Windows.Application.Current?.Dispatcher?.Invoke(() =>
+                {
+                    CloudSyncStatus = status;
+                });
+            };
+
+            // Trigger background cloud sync check on startup
+            _ = Task.Run(async () =>
+            {
+                await Task.Delay(1500);
+                await ChatHistoryManager.SyncFromCloudAsync();
+            });
+
             // Commands
             SendMessageCommand = new RelayCommand(async _ => await SendMessageAsync(), _ => CanSendMessage());
             NewSessionCommand = new RelayCommand(_ => CreateNewSession());
@@ -127,6 +181,7 @@ namespace InvisibleChat
             ToggleSettingsCommand = new RelayCommand(_ => ToggleSettings());
             SaveSettingsCommand = new RelayCommand(_ => SaveSettings());
             ClearHistoryCommand = new RelayCommand(_ => ClearCurrentHistory());
+            ManualCloudSyncCommand = new RelayCommand(async _ => await ChatHistoryManager.SyncFromCloudAsync());
             
             // Captions & Co-pilot Commands
             ToggleCaptionsSidebarCommand = new RelayCommand(_ => IsCaptionsSidebarVisible = !IsCaptionsSidebarVisible);
@@ -316,6 +371,7 @@ namespace InvisibleChat
         public ICommand ToggleSettingsCommand { get; }
         public ICommand SaveSettingsCommand { get; }
         public ICommand ClearHistoryCommand { get; }
+        public ICommand ManualCloudSyncCommand { get; }
         public ICommand ToggleCaptionsSidebarCommand { get; }
         public ICommand ClearCaptionsCommand { get; }
         public ICommand AskAiFromCaptionCommand { get; }
@@ -462,7 +518,139 @@ namespace InvisibleChat
                 IsSending = false;
                 SelectedSession.LastUpdated = DateTime.Now;
                 SaveHistory();
+
+                // Background upload screenshot/vision image to Cloudinary
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        var uploadResult = await CloudinaryService.Instance.UploadImageAsync(base64Image, null, "translucent_media");
+                        if (uploadResult.Success && !string.IsNullOrEmpty(uploadResult.SecureUrl))
+                        {
+                            userMsg.ImageUrl = uploadResult.SecureUrl;
+                            SaveHistory();
+                        }
+                    }
+                    catch {}
+                });
             }
+        }
+
+        public async Task AttachFileAsync(string filePath)
+        {
+            if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath)) return;
+
+            if (SelectedSession == null)
+            {
+                CreateNewSession();
+            }
+
+            RequestSwitchToChat?.Invoke();
+            IsSending = true;
+            CloudSyncStatus = "⏳ Uploading to Cloudinary...";
+
+            try
+            {
+                var result = await CloudinaryService.Instance.UploadFileAsync(filePath);
+                if (result.Success && !string.IsNullOrEmpty(result.SecureUrl))
+                {
+                    var fileMsg = new ChatMessage
+                    {
+                        Content = $"📎 Attached file: {result.FileName}",
+                        FileUrl = result.SecureUrl,
+                        FileName = result.FileName,
+                        FileSize = FormatBytes(result.FileSize),
+                        IsUser = true,
+                        Timestamp = DateTime.Now
+                    };
+
+                    if (result.IsImage)
+                    {
+                        fileMsg.ImageUrl = result.SecureUrl;
+                        try
+                        {
+                            fileMsg.ImageBase64 = Convert.ToBase64String(await File.ReadAllBytesAsync(filePath));
+                        }
+                        catch {}
+                    }
+
+                    CurrentMessages.Add(fileMsg);
+                    SelectedSession!.Messages.Add(fileMsg);
+                    SelectedSession.LastUpdated = DateTime.Now;
+                    SaveHistory();
+
+                    // Prepare AI analysis prompt
+                    string promptExtra = $"I uploaded and attached a file: {result.FileName} ({result.SecureUrl}).";
+                    string ext = Path.GetExtension(filePath).ToLowerInvariant();
+                    if (ext is ".txt" or ".md" or ".json" or ".csv" or ".py" or ".cs" or ".js" or ".html" or ".css" or ".xml" or ".log")
+                    {
+                        try
+                        {
+                            string textContent = await File.ReadAllTextAsync(filePath);
+                            if (textContent.Length > 20000) textContent = textContent.Substring(0, 20000) + "\n...[truncated]";
+                            promptExtra += $"\n\nFile Content:\n```\n{textContent}\n```\n\nPlease analyze and explain this file.";
+                        }
+                        catch {}
+                    }
+                    else if (result.IsImage)
+                    {
+                        promptExtra += "\nPlease analyze this attached image.";
+                    }
+                    else
+                    {
+                        promptExtra += "\nPlease confirm you received the attached file reference.";
+                    }
+
+                    var aiMsg = new ChatMessage { Content = string.Empty, IsUser = false, Timestamp = DateTime.Now, IsStreaming = true };
+                    CurrentMessages.Add(aiMsg);
+                    SelectedSession.Messages.Add(aiMsg);
+
+                    var historyToSend = SelectedSession.Messages.Take(SelectedSession.Messages.Count - 1).ToList();
+                    historyToSend.Add(new ChatMessage 
+                    { 
+                        Content = promptExtra, 
+                        IsUser = true, 
+                        ImageBase64 = result.IsImage ? fileMsg.ImageBase64 : null 
+                    });
+
+                    await foreach (var token in _chatService.StreamMessageAsync(historyToSend, _config))
+                    {
+                        aiMsg.Content += token;
+                    }
+                    aiMsg.IsStreaming = false;
+                    SaveHistory();
+                }
+                else
+                {
+                    CurrentMessages.Add(new ChatMessage
+                    {
+                        Content = $"⚠️ Failed to upload file to Cloudinary: {result.Error}",
+                        IsUser = false,
+                        Timestamp = DateTime.Now
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                CurrentMessages.Add(new ChatMessage
+                {
+                    Content = $"⚠️ File upload error: {ex.Message}",
+                    IsUser = false,
+                    Timestamp = DateTime.Now
+                });
+            }
+            finally
+            {
+                IsSending = false;
+                CloudSyncStatus = "☁️ Cloud Synced";
+            }
+        }
+
+        private static string FormatBytes(long bytes)
+        {
+            if (bytes < 1024) return $"{bytes} B";
+            if (bytes < 1024 * 1024) return $"{(bytes / 1024.0):F1} KB";
+            return $"{(bytes / (1024.0 * 1024.0)):F1} MB";
         }
 
         public async Task HandleAskAiFromCaptionAsync(string? captionText)

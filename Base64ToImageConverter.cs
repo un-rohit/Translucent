@@ -10,11 +10,32 @@ namespace InvisibleChat
     {
         public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
         {
-            if (value is string base64 && !string.IsNullOrEmpty(base64))
+            if (value is string str && !string.IsNullOrWhiteSpace(str))
             {
                 try
                 {
-                    byte[] bytes = System.Convert.FromBase64String(base64);
+                    // If it's a Cloudinary or remote image URL
+                    if (str.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || 
+                        str.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var imgUri = new BitmapImage();
+                        imgUri.BeginInit();
+                        imgUri.UriSource = new Uri(str, UriKind.Absolute);
+                        imgUri.CacheOption = BitmapCacheOption.OnLoad;
+                        imgUri.EndInit();
+                        imgUri.Freeze();
+                        return imgUri;
+                    }
+
+                    // Strip data:image/...;base64, prefix if present
+                    string rawBase64 = str;
+                    int commaIdx = rawBase64.IndexOf(',');
+                    if (commaIdx >= 0 && rawBase64.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        rawBase64 = rawBase64.Substring(commaIdx + 1);
+                    }
+
+                    byte[] bytes = System.Convert.FromBase64String(rawBase64);
                     using var ms = new MemoryStream(bytes);
                     var img = new BitmapImage();
                     img.BeginInit();
@@ -26,7 +47,7 @@ namespace InvisibleChat
                 }
                 catch (Exception ex)
                 {
-                    System.Diagnostics.Debug.WriteLine($"Failed to decode base64 image: {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine($"Failed to decode image from source: {ex.Message}");
                 }
             }
             return null;
