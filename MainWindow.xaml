@@ -1400,7 +1400,7 @@
                                 <TextBlock Text="Model Name" Foreground="{StaticResource TextMuted}"
                                            FontSize="11" FontWeight="SemiBold" Margin="0,0,0,4"/>
                                 <TextBox Style="{StaticResource ModernTextBox}"
-                                         Tag="gemini-3.7-flash"
+                                         Tag="gemini-3.8-flash"
                                          Text="{Binding ModelName, UpdateSourceTrigger=PropertyChanged}"
                                          Margin="0,0,0,12" WindowChrome.IsHitTestVisibleInChrome="True"/>
 

@@ -9,7 +9,7 @@ namespace InvisibleChat
     {
         public string ApiKey { get; set; } = string.Empty;
         public string ApiUrl { get; set; } = "https://generativelanguage.googleapis.com/v1beta";
-        public string ModelName { get; set; } = "gemini-2.0-flash";
+        public string ModelName { get; set; } = "gemini-3.8-flash";
         public string SystemPrompt { get; set; } = "You are a concise, sharp stealth assistant. Provide direct answers, solutions, and code without unnecessary fluff.";
         public bool Topmost { get; set; } = true;
         public double WindowOpacity { get; set; } = 0.92;
@@ -60,9 +60,21 @@ namespace InvisibleChat
                     var config = JsonSerializer.Deserialize<AppConfig>(json);
                     if (config != null)
                     {
+                        bool needsSave = false;
                         if (string.IsNullOrEmpty(config.DeviceId))
                         {
                             config.DeviceId = GenerateDeviceId();
+                            needsSave = true;
+                        }
+                        if (string.IsNullOrWhiteSpace(config.ModelName) ||
+                            config.ModelName.Equals("gemini-2.0-flash", StringComparison.OrdinalIgnoreCase) ||
+                            config.ModelName.Equals("gemini-1.5-flash", StringComparison.OrdinalIgnoreCase))
+                        {
+                            config.ModelName = "gemini-3.8-flash";
+                            needsSave = true;
+                        }
+                        if (needsSave)
+                        {
                             Save(config);
                         }
                         return config;

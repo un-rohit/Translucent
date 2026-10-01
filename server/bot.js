@@ -320,11 +320,22 @@ function initTelegramBot() {
             await ctx.answerCbQuery('Already processed.');
         });
 
-        // Launch Bot polling
-        bot.launch().then(() => {
+        // In Serverless / Vercel environments, long-polling is not supported and conflicts with local instances
+        const isVercel = process.env.VERCEL === '1' || process.env.NOW_REGION !== undefined;
+        if (isVercel) {
+            console.log('[Telegram Bot] ⚡ Running in Serverless/Vercel environment. Polling disabled (outgoing notifications ready).');
+            return bot;
+        }
+
+        // Launch Bot polling safely (dropping pending updates to clear stale connections)
+        bot.launch({ dropPendingUpdates: true }).then(() => {
             console.log('[Telegram Bot] 🚀 Telegram Payment & Licensing Bot is ONLINE!');
         }).catch(err => {
-            console.error('[Telegram Bot] Error launching bot:', err.message);
+            if (err.message && err.message.includes('409')) {
+                console.warn('[Telegram Bot] ⚠️ Polling conflict (409): Another instance is already polling Telegram. Polling skipped for this process.');
+            } else {
+                console.error('[Telegram Bot] Error launching bot:', err.message);
+            }
         });
 
         // Enable graceful stop

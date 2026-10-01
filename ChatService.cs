@@ -58,7 +58,9 @@ namespace InvisibleChat
         // ──────────────────────────────────────────────────────────────────────
         private async IAsyncEnumerable<string> StreamGeminiAsync(List<ChatMessage> history, AppConfig config)
         {
-            string model = string.IsNullOrWhiteSpace(config.ModelName) ? "gemini-2.0-flash" : config.ModelName;
+            string model = string.IsNullOrWhiteSpace(config.ModelName) || config.ModelName.Equals("gemini-2.0-flash", StringComparison.OrdinalIgnoreCase) || config.ModelName.Equals("gemini-1.5-flash", StringComparison.OrdinalIgnoreCase)
+                ? "gemini-3.8-flash"
+                : config.ModelName;
             string url = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:streamGenerateContent?alt=sse&key={config.ApiKey}";
 
             var contents = new List<object>();
@@ -149,15 +151,17 @@ namespace InvisibleChat
             {
                 var errorText = await response.Content.ReadAsStringAsync();
 
-                // If high demand / 503 / 429 on experimental model, automatically fallback to stable gemini-2.0-flash
-                if ((response.StatusCode == System.Net.HttpStatusCode.ServiceUnavailable ||
+                // If model is retired (404), high demand (503), rate-limited (429), or unavailable, automatically fallback to stable gemini-3.8-flash
+                if ((response.StatusCode == System.Net.HttpStatusCode.NotFound ||
+                     response.StatusCode == System.Net.HttpStatusCode.ServiceUnavailable ||
                      (int)response.StatusCode == 429 ||
+                     errorText.Contains("no longer available", StringComparison.OrdinalIgnoreCase) ||
                      errorText.Contains("high demand", StringComparison.OrdinalIgnoreCase)) &&
-                    !model.Equals("gemini-2.0-flash", StringComparison.OrdinalIgnoreCase))
+                    !model.Equals("gemini-3.8-flash", StringComparison.OrdinalIgnoreCase))
                 {
-                    yield return $"*[Note: {model} is experiencing high demand. Auto-switched to gemini-2.0-flash]*\n\n";
+                    yield return $"*[Note: {model} is unavailable ({response.StatusCode}). Auto-switched to gemini-3.8-flash]*\n\n";
 
-                    string fallbackUrl = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:streamGenerateContent?alt=sse&key={config.ApiKey}";
+                    string fallbackUrl = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:streamGenerateContent?alt=sse&key={config.ApiKey}";
                     using var fbRequest = new HttpRequestMessage(HttpMethod.Post, fallbackUrl)
                     {
                         Content = new StringContent(json, Encoding.UTF8, "application/json")
