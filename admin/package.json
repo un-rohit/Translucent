@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev -p 3001",
     "build": "next build",
+    "deploy:server": "node -e \"const fs=require('fs'); fs.cpSync('out', '../server/public', {recursive:true, force:true}); console.log('[OK] Deployed to server/public');\"",
     "start": "next start",
     "lint": "eslint"
   },

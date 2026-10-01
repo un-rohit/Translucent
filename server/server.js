@@ -58,6 +58,18 @@ app.get('/privacy', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'privacy.html'));
 });
 
+// Route /admin and /admin.html to the Next.js Admin portal
+app.get(['/admin', '/admin.html'], (req, res) => {
+    if (process.env.ADMIN_URL) {
+        return res.redirect(process.env.ADMIN_URL);
+    }
+    const adminPath = path.join(__dirname, 'public', 'admin.html');
+    if (fs.existsSync(adminPath)) {
+        return res.sendFile(adminPath);
+    }
+    res.redirect('http://localhost:3001');
+});
+
 // ─────────────────────────────────────────────────────────────────
 // Authentication Helpers
 // ─────────────────────────────────────────────────────────────────
@@ -483,8 +495,8 @@ if (!isVercel || require.main === module) {
     app.listen(PORT, () => {
         console.log(`=================================================`);
         console.log(`🚀 Translucent Auth & License Server Running`);
-        console.log(`📡 URL: http://localhost:${PORT}`);
-        console.log(`🔑 Admin Panel: http://localhost:${PORT}/admin.html`);
+        console.log(`📡 Server API URL: http://localhost:${PORT}`);
+        console.log(`🔑 Admin Console (Next.js): http://localhost:3001`);
         console.log(`🔐 Default Admin Password: ${ADMIN_PASSWORD}`);
         console.log(`=================================================`);
     });

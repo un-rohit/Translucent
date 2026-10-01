@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { RefreshCw, Settings, LogOut, ShieldCheck, ExternalLink, Laptop } from 'lucide-react';
 import { getBaseApiUrl } from '@/services/api';
 
@@ -17,7 +17,11 @@ export const Navbar: React.FC<NavbarProps> = ({
   onLogout,
   isRefreshing,
 }) => {
-  const apiUrl = getBaseApiUrl();
+  const [apiUrl, setApiUrl] = useState<string>('http://localhost:3000');
+
+  useEffect(() => {
+    setApiUrl(getBaseApiUrl());
+  }, []);
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-white/[0.07] bg-[#0c0c10]/80 backdrop-blur-md">

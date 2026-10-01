@@ -8,7 +8,7 @@ A lightweight, turn-key authentication and subscription licensing backend for **
 
 * **Google Authentication (OAuth 2.0)**: Connects Google accounts and generates secure 30-day JWT sessions.
 * **Instant Subscription Status Verification**: Desktop app polls `/api/subscription/status` with Bearer tokens to verify if a user has an active license.
-* **Web Admin Dashboard (`/admin.html`)**:
+* **Next.js Admin Console (`/admin` or `http://localhost:3001`)**:
   * Real-time metrics: Total Users, Active Subscriptions, Pending Approvals, Expired Accounts.
   * Search and filter by name, email, or status.
   * 1-click **Approve & Activate** with duration picker (30 Days, 90 Days, 1 Year, Lifetime Access).
@@ -29,7 +29,7 @@ npm start
 
 ### 2. Access the Admin Portal
 1. Open your browser and navigate to:
-   **[http://localhost:3000/admin.html](http://localhost:3000/admin.html)**
+   **[http://localhost:3001](http://localhost:3001)** (or `http://localhost:3000/admin`)
 2. Enter the default administrator key:
    `admin123`
 3. You can now view all registered users and approve their subscriptions.

@@ -680,7 +680,7 @@
             <a href="/" class="logo-group">
                 <div class="logo-icon">⚡</div>
                 <div class="logo-text">
-                    <h1>Translucent <span class="pro-badge">PRO v2.4</span></h1>
+                    <h1>Translucent <span class="pro-badge">PRO v1.0.4</span></h1>
                 </div>
             </a>
 
@@ -693,7 +693,7 @@
 
             <div class="nav-actions">
                 <a href="/login.html" class="btn btn-ghost">Sign In</a>
-                <a href="/admin.html" class="btn btn-ghost" title="Admin Licensing Portal">⚙️ Admin</a>
+                <a href="/admin" class="btn btn-ghost" title="Admin Licensing Portal">⚙️ Admin</a>
                 <a href="#download" class="btn btn-primary">Download Free</a>
             </div>
         </header>
@@ -702,7 +702,7 @@
         <section class="hero">
             <div class="release-tag">
                 <span class="pulse-dot"></span>
-                <span>Translucent Pro v2.4.0 Live for Windows 10 &amp; 11</span>
+                <span>Translucent Pro v1.0.4.0 Live for Windows 10 &amp; 11</span>
             </div>
 
             <h2>
@@ -819,9 +819,16 @@
                 </div>
 
                 <div class="feature-card">
+                    <div class="feature-icon-box">☁️</div>
+                    <h4>Dual-Layer Cloud &amp; Device Storage</h4>
+                    <p>Sub-millisecond local cache on device, paired with automatic debounced Cloudinary cloud storage. Chats, screen snips, and attached files sync seamlessly across all your PCs.</p>
+                    <div class="feature-hotkey">Cloudinary + Local Cache</div>
+                </div>
+
+                <div class="feature-card">
                     <div class="feature-icon-box">🔒</div>
                     <h4>Bank-Grade Google Licensing</h4>
-                    <p>Seamless sign-in with Google OAuth 2.0. Instant hardware-linked license activation and Web Admin approval controls.</p>
+                    <p>Seamless sign-in with Google OAuth 2.0. Instant hardware-linked license activation and Next.js Web Admin approval controls.</p>
                     <div class="feature-hotkey">Secure JWT Auth Sync</div>
                 </div>
             </div>
@@ -860,33 +867,34 @@
             <h3>Download Translucent Pro</h3>
             <p>Select your preferred package format. Compatible with all Windows 10 and Windows 11 editions.</p>
 
-            <div class="download-action-card">
+            <div class="download-action-card" style="border-color: rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.04);">
                 <div class="download-meta">
                     <h5>
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="#60A5FA">
-                            <path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4h-13.051M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-13.051-1.95"/>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="#34D399">
+                            <path d="M19 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/>
                         </svg>
-                        Translucent Direct Executable (.exe)
+                        Translucent Store App Package (.msix)
+                        <span style="font-size: 10px; background: rgba(16, 185, 129, 0.2); color: #34D399; padding: 2px 8px; border-radius: 12px; margin-left: 6px; font-weight: 700;">RECOMMENDED</span>
                     </h5>
-                    <p>Direct standalone binary • Zero installation required • Double-click to run</p>
+                    <p>Windows Store signed package • Safe 1-click install • Clean uninstallation &amp; auto-updates</p>
                 </div>
-                <a href="/api/download" class="btn btn-primary btn-large direct-dl-link" download="Translucent.exe">
-                    ⬇️ Direct Download (.exe)
+                <a href="/downloads/Translucent.msix" class="btn btn-primary btn-large" style="background: linear-gradient(135deg, #10B981 0%, #059669 100%);" download="Translucent.msix">
+                    ⬇️ Download Package (.msix)
                 </a>
             </div>
 
             <div class="download-action-card">
                 <div class="download-meta">
                     <h5>
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="#A855F7">
-                            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="#60A5FA">
+                            <path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4h-13.051M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-13.051-1.95"/>
                         </svg>
-                        Direct Server Mirror (.exe)
+                        Translucent Standalone Executable (.exe)
                     </h5>
-                    <p>Direct mirror download from high-speed production CDN</p>
+                    <p>Direct standalone binary • Zero installation required • Portable double-click to run</p>
                 </div>
-                <a href="/downloads/Translucent.exe" class="btn btn-ghost direct-dl-link" download="Translucent.exe">
-                    ⬇️ Download Mirror (.exe)
+                <a href="/api/download" class="btn btn-ghost btn-large direct-dl-link" download="Translucent.exe">
+                    ⬇️ Download Standalone (.exe)
                 </a>
             </div>
 
@@ -942,9 +950,10 @@
                 © 2026 Translucent Technologies. All rights reserved.
             </div>
             <div class="footer-links">
-                <a href="/api/download" class="direct-dl-link" download="Translucent.exe">Direct Download (.exe)</a>
+                <a href="/downloads/Translucent.msix" download="Translucent.msix">Store Package (.msix)</a>
+                <a href="/api/download" class="direct-dl-link" download="Translucent.exe">Standalone (.exe)</a>
                 <a href="/login.html">Google Sign In</a>
-                <a href="/admin.html">Admin Licensing Portal</a>
+                <a href="/admin">Admin Console</a>
                 <a href="#features">Features</a>
             </div>
         </footer>
