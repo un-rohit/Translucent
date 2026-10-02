@@ -197,168 +197,95 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ─── Interactive Window Showcase Mockup ─── */}
+      {/* Real Screenshot Showcase */}
       <section id="showcase" className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <div className="rounded-3xl border border-white/[0.12] bg-[#121217]/80 backdrop-blur-2xl shadow-2xl shadow-purple-950/40 overflow-hidden">
-          {/* Window Chrome Header */}
-          <div className="h-11 bg-[#181822]/90 border-b border-white/[0.08] px-4 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="h-3 w-3 rounded-full bg-rose-500/80 inline-block"></span>
-              <span className="h-3 w-3 rounded-full bg-amber-500/80 inline-block"></span>
-              <span className="h-3 w-3 rounded-full bg-emerald-500/80 inline-block"></span>
-              <span className="ml-2 text-xs font-semibold text-zinc-400 flex items-center gap-2">
-                <span>Translucent — Active Acrylic Overlay</span>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                  PROTECTED
-                </span>
+
+        {/* Tab selector */}
+        <div className="flex items-center justify-center gap-2 mb-5 flex-wrap">
+          {([
+            { key: 'chat',    label: '💬 AI Chat' },
+            { key: 'snip',    label: '👻 Ghost Mode' },
+            { key: 'browser', label: '🌐 Built-in Browser' },
+          ] as const).map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setActiveTab(key)}
+              className={`px-4 py-1.5 rounded-xl text-xs font-semibold transition-all border ${
+                activeTab === key
+                  ? 'bg-purple-600 text-white border-purple-500 shadow-lg shadow-purple-950/50'
+                  : 'text-zinc-400 hover:text-white bg-white/[0.04] border-white/[0.08] hover:border-white/[0.15]'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Screenshot Frame */}
+        <div className="rounded-2xl border border-white/[0.12] bg-[#0e0e14] shadow-2xl shadow-purple-950/40 overflow-hidden">
+          {/* Window chrome */}
+          <div className="h-10 bg-[#181822] border-b border-white/[0.07] px-4 flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <span className="h-3 w-3 rounded-full bg-rose-500/80" />
+              <span className="h-3 w-3 rounded-full bg-amber-500/80" />
+              <span className="h-3 w-3 rounded-full bg-emerald-500/80" />
+              <span className="ml-3 text-[11px] font-semibold text-zinc-400 flex items-center gap-2">
+                Translucent — Stealth AI Copilot
+                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 uppercase tracking-wide">Hidden from capture</span>
               </span>
             </div>
-
-            <div className="flex items-center gap-2 text-xs text-zinc-400">
-              <span className="flex items-center gap-1 text-[11px] text-purple-300 bg-purple-500/10 px-2 py-0.5 rounded border border-purple-500/20">
-                <Cloud className="w-3 h-3 text-purple-400" />
-                <span>Cloud Synced</span>
-              </span>
-            </div>
+            <span className="flex items-center gap-1 text-[10px] text-purple-300 bg-purple-500/10 px-2 py-0.5 rounded border border-purple-500/20">
+              <Cloud className="w-3 h-3" /> Cloud Synced
+            </span>
           </div>
 
-          {/* Tab Selector */}
-          <div className="bg-[#14141c] border-b border-white/[0.06] px-4 py-2 flex items-center gap-2 text-xs font-medium">
-            <button
-              onClick={() => setActiveTab('chat')}
-              className={`px-3 py-1 rounded-lg transition-colors ${
-                activeTab === 'chat'
-                  ? 'bg-purple-600 text-white font-semibold'
-                  : 'text-zinc-400 hover:text-white hover:bg-white/[0.05]'
-              }`}
-            >
-              💬 Gemini Chat &amp; Code
-            </button>
-            <button
-              onClick={() => setActiveTab('snip')}
-              className={`px-3 py-1 rounded-lg transition-colors ${
-                activeTab === 'snip'
-                  ? 'bg-purple-600 text-white font-semibold'
-                  : 'text-zinc-400 hover:text-white hover:bg-white/[0.05]'
-              }`}
-            >
-              📸 Stealth Screen Snip
-            </button>
-            <button
-              onClick={() => setActiveTab('browser')}
-              className={`px-3 py-1 rounded-lg transition-colors ${
-                activeTab === 'browser'
-                  ? 'bg-purple-600 text-white font-semibold'
-                  : 'text-zinc-400 hover:text-white hover:bg-white/[0.05]'
-              }`}
-            >
-              🌐 Dual WebView2 Browser
-            </button>
-          </div>
-
-          {/* Interactive Window Body */}
-          <div className="p-6 sm:p-8 min-h-[340px] flex flex-col justify-between">
+          {/* Real Screenshot */}
+          <div className="relative w-full bg-black">
             {activeTab === 'chat' && (
-              <div className="space-y-4 animate-in fade-in">
-                {/* User Message */}
-                <div className="flex justify-end">
-                  <div className="max-w-md bg-purple-600 text-white rounded-2xl rounded-tr-sm px-4 py-2.5 text-xs sm:text-sm shadow-md">
-                    <p>How do I prevent memory leaks when handling WASAPI loopback audio in C# WPF?</p>
-                    <span className="text-[10px] text-purple-200 mt-1 block text-right font-mono">15:30</span>
-                  </div>
-                </div>
-
-                {/* AI Response */}
-                <div className="flex justify-start">
-                  <div className="max-w-lg bg-[#1a1a24] border border-white/[0.08] text-zinc-100 rounded-2xl rounded-tl-sm p-4 text-xs sm:text-sm space-y-2.5 shadow-lg">
-                    <div className="flex items-center gap-2 text-xs font-bold text-purple-300">
-                      <Sparkles className="w-3.5 h-3.5 text-purple-400" />
-                      <span>Gemini 2.5 Flash</span>
-                    </div>
-                    <p className="text-zinc-300 leading-relaxed text-xs">
-                      Always implement <code className="text-purple-300 font-mono bg-purple-950/40 px-1 py-0.5 rounded">IDisposable</code> on your <code className="text-cyan-300 font-mono">WasapiLoopbackCapture</code> instance, unsubscribe from <code className="text-amber-300 font-mono">DataAvailable</code> before stopping, and flush your audio circular buffer:
-                    </p>
-                    <div className="bg-[#0e0e14] rounded-xl p-3 border border-white/[0.06] font-mono text-[11px] text-zinc-300 overflow-x-auto">
-                      <span className="text-purple-400">capture</span>.DataAvailable -= OnAudioDataAvailable;<br />
-                      <span className="text-purple-400">capture</span>.StopRecording();<br />
-                      <span className="text-purple-400">capture</span>.Dispose();
-                    </div>
-                  </div>
-                </div>
-              </div>
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src="/Translucent/chat with AI .png" alt="AI Chat" className="w-full object-cover animate-in fade-in duration-300" />
             )}
-
             {activeTab === 'snip' && (
-              <div className="space-y-4 animate-in fade-in">
-                <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/[0.08] flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-xl bg-purple-900/30 border border-purple-500/30 flex items-center justify-center shrink-0">
-                    <Camera className="w-8 h-8 text-purple-400" />
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-bold text-white">Stealth Region Screen Snipping</h4>
-                    <p className="text-xs text-zinc-400 mt-1">
-                      Press <kbd className="px-1.5 py-0.5 bg-black/50 border border-white/20 rounded font-mono text-[11px] text-purple-300">Ctrl + Shift + S</kbd> to freeze and snip any region of your screen. The snip is uploaded to Cloudinary and instantly analyzed by Gemini.
-                    </p>
-                  </div>
-                </div>
-              </div>
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src="/Translucent/Ghost mode.png" alt="Ghost Stealth Mode" className="w-full object-cover animate-in fade-in duration-300" />
             )}
-
             {activeTab === 'browser' && (
-              <div className="space-y-4 animate-in fade-in">
-                <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/[0.08] flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-xl bg-indigo-900/30 border border-indigo-500/30 flex items-center justify-center shrink-0">
-                    <Layers className="w-8 h-8 text-indigo-400" />
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-bold text-white">Dual Engine WebView2 Multi-Tab</h4>
-                    <p className="text-xs text-zinc-400 mt-1">
-                      Browse documentation, StackOverflow, or external dashboards right inside your translucent overlay with hardware audio loopback and 1-click prompt fast-deck.
-                    </p>
-                  </div>
-                </div>
-              </div>
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src="/Translucent/built-in broswer.png" alt="Built-in Browser" className="w-full object-cover animate-in fade-in duration-300" />
             )}
-
-            {/* Floating Hotkey Badges */}
-            <div className="mt-6 pt-4 border-t border-white/[0.06] flex flex-wrap items-center justify-between gap-3 text-xs">
-              <div className="flex items-center gap-2">
-                <span className="text-zinc-500 font-semibold">GLOBAL HOTKEYS:</span>
-                <button
-                  onClick={() => handleCopyHotkey('Ctrl+Shift+H')}
-                  className="flex items-center gap-1 font-mono text-[11px] text-purple-300 bg-purple-500/10 hover:bg-purple-500/20 px-2 py-1 rounded-lg border border-purple-500/20 transition-colors"
-                  title="Click to copy"
-                >
-                  <span>Ctrl + Shift + H (Vanish)</span>
-                  {copiedHotkey === 'Ctrl+Shift+H' ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3 opacity-60" />}
-                </button>
-
-                <button
-                  onClick={() => handleCopyHotkey('Ctrl+Shift+S')}
-                  className="flex items-center gap-1 font-mono text-[11px] text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 px-2 py-1 rounded-lg border border-emerald-500/20 transition-colors"
-                  title="Click to copy"
-                >
-                  <span>Ctrl + Shift + S (Snip)</span>
-                  {copiedHotkey === 'Ctrl+Shift+S' ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3 opacity-60" />}
-                </button>
-              </div>
-
-              <div className="text-[11px] text-zinc-400 font-mono">
-                Powered by Gemini 2.5 Flash
-              </div>
-            </div>
           </div>
         </div>
-      </section>
 
-      {/* ─── Features Grid ─── */}
-      <section id="features" className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-        <div className="text-center max-w-3xl mx-auto mb-16">
-          <h2 className="text-xs uppercase tracking-widest font-bold text-purple-400 mb-3">Power User Architecture</h2>
-          <h3 className="text-3xl sm:text-5xl font-extrabold text-white tracking-tight">
-            Engineered for Stealth, Speed &amp; Accuracy
-          </h3>
-          <p className="mt-4 text-zinc-400 text-sm sm:text-base">
+        {/* Thumbnail strip — all 8 screenshots */}
+        <div className="mt-4 grid grid-cols-4 sm:grid-cols-8 gap-3">
+          {[
+            { src: '/Translucent/chat with AI .png',          label: 'AI Chat' },
+            { src: '/Translucent/Ghost mode.png',             label: 'Ghost Mode' },
+            { src: '/Translucent/built-in broswer.png',       label: 'Browser' },
+            { src: '/Translucent/Full Invisible Broswer.png', label: 'Full View' },
+            { src: '/Translucent/preloaded prompts.png',      label: 'Prompts' },
+            { src: '/Translucent/audio input settings.png',   label: 'Audio' },
+            { src: '/Translucent/settings.png',               label: 'Settings' },
+            { src: '/Translucent/Device susbscrition .png',   label: 'License' },
+          ].map(({ src, label }) => (
+            <div
+              key={src}
+              className="group cursor-pointer"
+              onClick={() => {
+                if (src.includes('chat')) setActiveTab('chat');
+                else if (src.includes('Ghost')) setActiveTab('snip');
+                else if (src.includes('built') || src.includes('Full')) setActiveTab('browser');
+              }}
+            >
+              <div className="rounded-xl overflow-hidden border border-white/[0.08] group-hover:border-purple-500/40 transition-all group-hover:scale-[1.05]">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={src} alt={label} className="w-full h-14 object-cover object-top" />
+              </div>
+              <p className="text-center text-[9px] text-zinc-500 mt-1">{label}</p>
+            </div>
+          ))}
+        </div>
+      </section>
             Everything you need for seamless, unobtrusive intelligence directly on your Windows desktop.
           </p>
         </div>
