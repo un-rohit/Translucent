@@ -101,7 +101,7 @@ export default function LandingPage() {
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="https://get.microsoft.com/images/en-us%20dark.svg"
+                src="/ms-store-badge-dark.svg"
                 alt="Get it from Microsoft"
                 className="h-9 w-auto"
               />
@@ -146,7 +146,7 @@ export default function LandingPage() {
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="https://get.microsoft.com/images/en-us%20dark.svg"
+              src="/ms-store-badge-dark.svg"
               alt="Get it from Microsoft"
               className="h-14 w-auto"
             />
