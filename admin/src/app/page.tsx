@@ -1,21 +1,5 @@
 'use client';
 
-// TypeScript declaration for Microsoft Store Badge Web Component
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      'ms-store-badge': React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement> & {
-        productid?: string;
-        productname?: string;
-        'window-mode'?: string;
-        theme?: string;
-        size?: string;
-        language?: string;
-        animation?: string;
-      }, HTMLElement>;
-    }
-  }
-}
 
 import React, { useState } from 'react';
 import Link from 'next/link';
@@ -108,17 +92,20 @@ export default function LandingPage() {
           </nav>
 
           {/* Header Action Buttons */}
-          <div className="flex items-center pl-2">
-            <ms-store-badge
-              productid="9n12bcrjxl2q"
-              productname="Translucent"
-              window-mode="direct"
-              theme="dark"
-              size="small"
-              language="en-in"
-              animation="on"
-              cid="header"
-            />
+          <div className="flex items-center pl-1">
+            <a
+              href="https://get.microsoft.com/installer/download/9n12bcrjxl2q?referrer=appbadge&cid=header"
+              target="_self"
+              className="hover:opacity-90 hover:scale-105 active:scale-95 transition-all"
+              title="Get Translucent on Microsoft Store"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="https://get.microsoft.com/images/en-us%20dark.svg"
+                alt="Get it from Microsoft"
+                className="h-9 w-auto"
+              />
+            </a>
           </div>
         </div>
       </header>
@@ -151,19 +138,19 @@ export default function LandingPage() {
         <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-5">
 
           {/* Primary — Official Microsoft Store Badge */}
-          {/* Above the fold, prominent placement per MS badge guidelines */}
-          <div className="flex flex-col items-center gap-2">
-            <ms-store-badge
-              productid="9n12bcrjxl2q"
-              productname="Translucent"
-              window-mode="direct"
-              theme="dark"
-              size="large"
-              language="en-in"
-              animation="on"
-              cid="hero"
+          <a
+            href="https://get.microsoft.com/installer/download/9n12bcrjxl2q?referrer=appbadge&cid=hero"
+            target="_self"
+            className="hover:opacity-90 hover:scale-[1.04] active:scale-[0.98] transition-all drop-shadow-2xl"
+            title="Get Translucent on Microsoft Store"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="https://get.microsoft.com/images/en-us%20dark.svg"
+              alt="Get it from Microsoft"
+              className="h-14 w-auto"
             />
-          </div>
+          </a>
 
           {/* Secondary — Standalone EXE */}
           <a
@@ -286,6 +273,14 @@ export default function LandingPage() {
           ))}
         </div>
       </section>
+      {/* ─── Features Grid ─── */}
+      <section id="features" className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+        <div className="text-center max-w-3xl mx-auto mb-16">
+          <h2 className="text-xs uppercase tracking-widest font-bold text-purple-400 mb-3">Power User Architecture</h2>
+          <h3 className="text-3xl sm:text-5xl font-extrabold text-white tracking-tight">
+            Engineered for Stealth, Speed &amp; Accuracy
+          </h3>
+          <p className="mt-4 text-zinc-400 text-sm sm:text-base">
             Everything you need for seamless, unobtrusive intelligence directly on your Windows desktop.
           </p>
         </div>
