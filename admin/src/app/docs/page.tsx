@@ -219,20 +219,18 @@ export default function DocsPage() {
           </nav>
 
           <div className="flex items-center gap-3">
-            <Link
-              href="/admin"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-zinc-300 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] transition-all"
-            >
-              <Shield className="w-3.5 h-3.5 text-purple-400" />
-              <span>Admin Console</span>
-            </Link>
             <a
-              href="/downloads/Translucent.msix"
-              download="Translucent.msix"
-              className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-700 hover:from-purple-500 hover:to-indigo-500 shadow-md shadow-purple-950/40 transition-all"
+              href="https://get.microsoft.com/installer/download/9n12bcrjxl2q?referrer=appbadge&cid=docs_header"
+              target="_self"
+              className="hover:opacity-90 hover:scale-105 active:scale-95 transition-all"
+              title="Get Translucent on Microsoft Store"
             >
-              <Download className="w-3.5 h-3.5" />
-              <span>Download</span>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="https://get.microsoft.com/images/en-us%20dark.svg"
+                alt="Get it from Microsoft"
+                className="h-9 w-auto"
+              />
             </a>
           </div>
         </div>
@@ -587,9 +585,14 @@ export default function DocsPage() {
             <a href="/downloads/Translucent.exe" className="hover:text-white transition-colors" download="Translucent.exe">
               Standalone (.exe)
             </a>
-            <Link href="/admin" className="text-purple-400 hover:text-purple-300 transition-colors font-semibold">
-              Admin Console
-            </Link>
+            <a
+              href="https://apps.microsoft.com/store/detail/9N12BCRJXL2Q?cid=DevShareMWAPCS"
+              target="_blank"
+              rel="noreferrer"
+              className="text-purple-400 hover:text-purple-300 transition-colors font-semibold"
+            >
+              Microsoft Store
+            </a>
           </div>
         </div>
       </footer>

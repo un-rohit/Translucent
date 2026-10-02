@@ -101,7 +101,8 @@ export default function LandingPage() {
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/ms-store-badge-dark.svg"
+                src="https://get.microsoft.com/images/en-us%20dark.svg"
+                onError={(e) => { e.currentTarget.src = "/ms-store-badge-dark.svg"; }}
                 alt="Get it from Microsoft"
                 className="h-9 w-auto"
               />
@@ -135,7 +136,7 @@ export default function LandingPage() {
         </p>
 
         {/* Call to Actions */}
-        <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-5">
+        <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4 flex-wrap">
 
           {/* Primary — Official Microsoft Store Badge */}
           <a
@@ -146,10 +147,21 @@ export default function LandingPage() {
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/ms-store-badge-dark.svg"
+              src="https://get.microsoft.com/images/en-us%20dark.svg"
+              onError={(e) => { e.currentTarget.src = "/ms-store-badge-dark.svg"; }}
               alt="Get it from Microsoft"
               className="h-14 w-auto"
             />
+          </a>
+
+          {/* Direct Store Protocol for Windows */}
+          <a
+            href="ms-windows-store://pdp/?productid=9N12BCRJXL2Q"
+            className="flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl text-xs font-bold text-white bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:to-indigo-500 border border-blue-400/30 hover:scale-[1.03] active:scale-[0.98] transition-all shadow-lg shadow-blue-950/40"
+            title="Open directly in Microsoft Store application"
+          >
+            <ExternalLink className="w-4 h-4 text-cyan-300" />
+            <span>Open in Store App</span>
           </a>
 
           {/* Secondary — Standalone EXE */}
@@ -159,7 +171,7 @@ export default function LandingPage() {
             className="flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-2xl text-sm font-semibold text-zinc-200 hover:text-white bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.1] hover:border-white/[0.2] transition-all"
           >
             <Terminal className="w-4 h-4 text-purple-400" />
-            <span>Portable .EXE (No Install)</span>
+            <span>Portable .EXE</span>
           </a>
         </div>
 
@@ -664,29 +676,66 @@ export default function LandingPage() {
 
           {/* Download Action Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* MSIX Card */}
-            <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/[0.03] p-6 flex flex-col justify-between hover:border-emerald-500/50 transition-all">
+            {/* Microsoft Store Card */}
+            <div className="rounded-2xl border border-blue-500/30 bg-gradient-to-b from-blue-500/[0.08] to-purple-500/[0.03] p-6 flex flex-col justify-between hover:border-blue-500/50 transition-all">
               <div>
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                    Recommended Format
+                <div className="flex items-center justify-between mb-4">
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-blue-500/20 text-cyan-300 border border-blue-500/30">
+                    Official Microsoft Store
                   </span>
-                  <span className="text-xs font-mono text-zinc-400">64.28 MB</span>
+                  <span className="text-xs font-mono text-zinc-400">Windows 10 / 11</span>
                 </div>
-                <h4 className="text-lg font-bold text-white mb-1">Store App Package (.msix)</h4>
+                <h4 className="text-lg font-bold text-white mb-2">Translucent on Microsoft Store</h4>
                 <p className="text-xs text-zinc-400 mb-6 leading-relaxed">
-                  Official Windows Store signed package. Safe 1-click installation with clean updates and full trust verification.
+                  Certified, signed, and distributed by Microsoft. Enjoy seamless one-click installation, background automatic updates, and full sandbox security.
                 </p>
+
+                {/* Microsoft Store Official Badge */}
+                <div className="mb-5 flex items-center justify-center sm:justify-start">
+                  <a
+                    href="https://get.microsoft.com/installer/download/9n12bcrjxl2q?referrer=appbadge&cid=download_section"
+                    target="_self"
+                    className="hover:opacity-90 hover:scale-105 active:scale-95 transition-all drop-shadow-lg"
+                    title="Download Translucent from Microsoft Store"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src="https://get.microsoft.com/images/en-us%20dark.svg"
+                      onError={(e) => { e.currentTarget.src = "/ms-store-badge-dark.svg"; }}
+                      alt="Get it from Microsoft"
+                      className="h-12 w-auto"
+                    />
+                  </a>
+                </div>
               </div>
 
-              <a
-                href="/downloads/Translucent.msix"
-                download="Translucent.msix"
-                className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 shadow-lg shadow-emerald-950/40 transition-all"
-              >
-                <Download className="w-4 h-4" />
-                <span>Download Translucent.msix</span>
-              </a>
+              <div className="space-y-2.5 pt-2">
+                <a
+                  href="ms-windows-store://pdp/?productid=9N12BCRJXL2Q"
+                  className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:to-indigo-500 shadow-lg shadow-blue-950/40 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  <ExternalLink className="w-4 h-4 text-cyan-300" />
+                  <span>Open in Microsoft Store App</span>
+                </a>
+                <div className="flex items-center justify-between text-[11px] text-zinc-400 px-1 pt-1">
+                  <a
+                    href="https://apps.microsoft.com/store/detail/9N12BCRJXL2Q?cid=DevShareMWAPCS"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="hover:text-purple-300 transition-colors inline-flex items-center gap-1"
+                  >
+                    <span>Web Store Listing</span>
+                    <ExternalLink className="w-3 h-3 opacity-60" />
+                  </a>
+                  <a
+                    href="/downloads/Translucent.msix"
+                    download="Translucent.msix"
+                    className="hover:text-emerald-400 transition-colors"
+                  >
+                    Offline .MSIX (64 MB)
+                  </a>
+                </div>
+              </div>
             </div>
 
             {/* Standalone EXE Card */}
@@ -790,11 +839,16 @@ export default function LandingPage() {
             <a href="/downloads/Translucent.exe" className="hover:text-white transition-colors" download="Translucent.exe">
               Standalone (.exe)
             </a>
-            <Link href="/docs" className="text-purple-400 hover:text-purple-300 transition-colors font-semibold">
+            <a
+              href="https://apps.microsoft.com/store/detail/9N12BCRJXL2Q?cid=DevShareMWAPCS"
+              target="_blank"
+              rel="noreferrer"
+              className="text-purple-400 hover:text-purple-300 transition-colors font-semibold"
+            >
+              Microsoft Store
+            </a>
+            <Link href="/docs" className="hover:text-white transition-colors">
               Documentation &amp; AI Setup
-            </Link>
-            <Link href="/admin" className="text-purple-400 hover:text-purple-300 transition-colors font-semibold">
-              Admin Console
             </Link>
             <a href="#features" className="hover:text-white transition-colors">
               Features
