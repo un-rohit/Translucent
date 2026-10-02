@@ -25,6 +25,12 @@ export default function RootLayout({
             __html: `try{if(!document.querySelector('meta[name="darkreader-lock"]')){var m=document.createElement('meta');m.name='darkreader-lock';document.head.appendChild(m);}}catch(e){}`,
           }}
         />
+        {/* Microsoft Store Badge Web Component */}
+        <script
+          type="module"
+          src="https://get.microsoft.com/badge/ms-store-badge.bundled.js"
+          async
+        />
       </head>
       <body className="min-h-full flex flex-col bg-[#070709] text-white selection:bg-purple-500/30 selection:text-purple-200" suppressHydrationWarning>
         {children}

@@ -1,9 +1,25 @@
 'use client';
 
+// TypeScript declaration for Microsoft Store Badge Web Component
+declare global {
+  namespace JSX {
+    interface IntrinsicElements {
+      'ms-store-badge': React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement> & {
+        productid?: string;
+        productname?: string;
+        'window-mode'?: string;
+        theme?: string;
+        size?: string;
+        language?: string;
+        animation?: string;
+      }, HTMLElement>;
+    }
+  }
+}
+
 import React, { useState } from 'react';
 import Link from 'next/link';
 import {
-  Shield,
   Download,
   EyeOff,
   Camera,
@@ -92,23 +108,17 @@ export default function LandingPage() {
           </nav>
 
           {/* Header Action Buttons */}
-          <div className="flex items-center gap-2 sm:gap-3">
-            <Link
-              href="/admin"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-zinc-300 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] transition-all"
-              title="Admin Licensing Console"
-            >
-              <Shield className="w-3.5 h-3.5 text-purple-400" />
-              <span>Admin Console</span>
-            </Link>
-
-            <a
-              href="#download"
-              className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-700 hover:from-purple-500 hover:to-indigo-500 shadow-md shadow-purple-950/40 transition-all hover:scale-105 active:scale-95"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>Download</span>
-            </a>
+          <div className="flex items-center pl-2">
+            <ms-store-badge
+              productid="9n12bcrjxl2q"
+              productname="Translucent"
+              window-mode="direct"
+              theme="dark"
+              size="small"
+              language="en-in"
+              animation="on"
+              cid="header"
+            />
           </div>
         </div>
       </header>
@@ -121,7 +131,7 @@ export default function LandingPage() {
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
             <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
           </span>
-          <span>Translucent Pro v1.0.4.0 Live for Windows 10 &amp; 11</span>
+          <span>🪟 Now available on Microsoft Store — Windows 10 &amp; 11</span>
         </div>
 
         {/* Main Headline */}
@@ -138,40 +148,47 @@ export default function LandingPage() {
         </p>
 
         {/* Call to Actions */}
-        <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-          {/* Primary MSIX Download */}
-          <a
-            href="/downloads/Translucent.msix"
-            download="Translucent.msix"
-            className="w-full sm:w-auto flex items-center justify-center gap-2.5 px-7 py-3.5 rounded-2xl text-sm font-bold text-white bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-500 hover:to-teal-500 shadow-xl shadow-emerald-950/50 hover:scale-[1.02] active:scale-[0.98] transition-all"
-          >
-            <Download className="w-5 h-5" />
-            <div className="text-left">
-              <div className="text-xs uppercase tracking-wider text-emerald-200 font-semibold">Recommended</div>
-              <div className="text-sm font-bold">Download Store Package (.msix)</div>
-            </div>
-          </a>
+        <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-5">
 
-          {/* Secondary Standalone EXE */}
+          {/* Primary — Official Microsoft Store Badge */}
+          {/* Above the fold, prominent placement per MS badge guidelines */}
+          <div className="flex flex-col items-center gap-2">
+            <ms-store-badge
+              productid="9n12bcrjxl2q"
+              productname="Translucent"
+              window-mode="direct"
+              theme="dark"
+              size="large"
+              language="en-in"
+              animation="on"
+              cid="hero"
+            />
+          </div>
+
+          {/* Secondary — Standalone EXE */}
           <a
             href="/downloads/Translucent.exe"
             download="Translucent.exe"
-            className="w-full sm:w-auto flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-2xl text-sm font-semibold text-zinc-200 hover:text-white bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.1] hover:border-white/[0.2] transition-all"
+            className="flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-2xl text-sm font-semibold text-zinc-200 hover:text-white bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.1] hover:border-white/[0.2] transition-all"
           >
             <Terminal className="w-4 h-4 text-purple-400" />
-            <span>Standalone .EXE (Portable)</span>
+            <span>Portable .EXE (No Install)</span>
           </a>
         </div>
 
         {/* Trust Badges */}
         <div className="mt-8 flex flex-wrap items-center justify-center gap-6 text-xs text-zinc-400">
           <span className="flex items-center gap-1.5">
-            <Check className="w-3.5 h-3.5 text-emerald-400" />
-            Signed Windows Store Package (.msix)
+            <Check className="w-3.5 h-3.5 text-blue-400" />
+            Available on Microsoft Store
           </span>
           <span className="flex items-center gap-1.5">
             <Check className="w-3.5 h-3.5 text-emerald-400" />
             Windows 10 / 11 (64-bit) Compatible
+          </span>
+          <span className="flex items-center gap-1.5">
+            <Check className="w-3.5 h-3.5 text-emerald-400" />
+            Signed &amp; Verified by Microsoft
           </span>
           <span className="flex items-center gap-1.5">
             <Check className="w-3.5 h-3.5 text-emerald-400" />
