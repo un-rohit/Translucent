@@ -1,7 +1,7 @@
 'use client';
 
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   Download,
@@ -19,13 +19,120 @@ import {
   ArrowRight,
   Copy,
   Terminal,
-  Layers
+  Layers,
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
+  X,
+  ChevronLeft,
+  ChevronRight,
+  RotateCcw
 } from 'lucide-react';
+
+const galleryScreenshots = [
+  {
+    src: '/Translucent/Full Invisible Broswer.png',
+    label: 'Full Invisible Browser',
+    caption: 'Float a full browser overlay above any app — completely hidden from screen capture.',
+    tag: '🌐 Browser',
+    badge: 'Stealth View',
+    details: 'Translucent includes a specialized WebView2 browser layer that renders transparently over IDEs, code editors, or browser windows. Because it hooks into Windows Desktop Window Manager (DWM) with SetWindowDisplayAffinity (WDA_EXCLUDEFROMCAPTURE), it is completely excluded from Zoom, Teams, Google Meet, and OBS screen captures.'
+  },
+  {
+    src: '/Translucent/chat with AI .png',
+    label: 'Chat with AI & Vision',
+    caption: 'Ask Gemini, GPT, or Groq anything — directly inside your translucent floating panel.',
+    tag: '🤖 AI Chat',
+    badge: 'Multi-Model',
+    details: 'Supports Google Gemini 2.5/3.8 Flash, Groq LPU (500+ tok/s), OpenAI GPT-4o, DeepSeek Reasoner, and local Ollama. Chat history is preserved locally for instant offline loading and synchronized to Cloudinary cloud storage.'
+  },
+  {
+    src: '/Translucent/Ghost mode.png',
+    label: 'Ghost Mode Active',
+    caption: 'Ghost Mode makes clicks pass through the window — it becomes truly invisible.',
+    tag: '👻 Ghost Mode',
+    badge: 'Click-Through',
+    details: 'When Ghost Mode is engaged (Ctrl + Shift + H), the window applies WS_EX_TRANSPARENT, enabling mouse clicks and keystrokes to pass completely through to whatever application is running underneath while keeping AI responses clearly legible.'
+  },
+  {
+    src: '/Translucent/settings.png',
+    label: 'AI Provider Settings',
+    caption: 'Switch between Gemini, GPT, Groq, DeepSeek or OpenRouter with your own API key.',
+    tag: '⚙️ Settings',
+    badge: 'Config',
+    details: 'Zero vendor lock-in. Store your personal API keys with local DPAPI hardware encryption. Configure fallback models, temperature, max tokens, and automatic 503 retry mechanisms with full control.'
+  },
+  {
+    src: '/Translucent/preloaded prompts.png',
+    label: 'Preloaded Prompts Deck',
+    caption: 'One-click smart prompts for interviews, code review, debugging, and more.',
+    tag: '⚡ Prompts',
+    badge: 'Quick Deck',
+    details: 'Instant quick-action chips for rapid technical answers, STAR-format interview responses, live code analysis, and concise bug fix breakdowns with 1-click prompt injection.'
+  },
+  {
+    src: '/Translucent/audio input settings.png',
+    label: 'Audio Input & Routing',
+    caption: 'Route meeting audio or microphone into AI context for live captions.',
+    tag: '🎙️ Audio',
+    badge: 'WASAPI',
+    details: 'Built-in NAudio loopback capture listens directly to system speaker output without physical cables or virtual audio drivers, feeding meeting conversations into Windows offline speech recognition.'
+  },
+  {
+    src: '/Translucent/built-in broswer.png',
+    label: 'Built-in Multi-Tab Browser',
+    caption: 'Dual WebView2 multi-tab browser — browse docs and AI side by side.',
+    tag: '📑 Multi-Tab',
+    badge: 'WebView2',
+    details: 'Integrated Chromium WebView2 engine with multi-tab browsing, ad-blocking, dark mode injection, and instant side-by-side split view (Ctrl + Shift + D).'
+  },
+  {
+    src: '/Translucent/Device susbscrition .png',
+    label: 'Device & Subscription',
+    caption: 'Manage your licensed devices and subscription status from one place.',
+    tag: '🔐 License',
+    badge: 'Hardware Lock',
+    details: 'Single-device hardware license enforcement powered by Supabase and Google OAuth 2.0. View machine UUID, subscription validity, and token usage seamlessly.'
+  },
+];
 
 export default function LandingPage() {
   const [activeTab, setActiveTab] = useState<'chat' | 'snip' | 'browser'>('chat');
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [copiedHotkey, setCopiedHotkey] = useState<string | null>(null);
+  const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
+  const [zoomLevel, setZoomLevel] = useState<number>(1);
+
+  // Keyboard navigation & lock background scroll when viewing full detail
+  useEffect(() => {
+    if (selectedImageIndex === null) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setSelectedImageIndex(null);
+        setZoomLevel(1);
+      } else if (e.key === 'ArrowRight') {
+        setSelectedImageIndex((prev) => (prev !== null ? (prev + 1) % galleryScreenshots.length : 0));
+        setZoomLevel(1);
+      } else if (e.key === 'ArrowLeft') {
+        setSelectedImageIndex((prev) => (prev !== null ? (prev - 1 + galleryScreenshots.length) % galleryScreenshots.length : 0));
+        setZoomLevel(1);
+      } else if (e.key === '+' || e.key === '=') {
+        setZoomLevel((prev) => Math.min(prev + 0.25, 2.5));
+      } else if (e.key === '-') {
+        setZoomLevel((prev) => Math.max(prev - 0.25, 0.75));
+      } else if (e.key === '0') {
+        setZoomLevel(1);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [selectedImageIndex]);
 
   const handleCopyHotkey = (hotkey: string) => {
     navigator.clipboard.writeText(hotkey);
@@ -233,25 +340,53 @@ export default function LandingPage() {
                 <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 uppercase tracking-wide">Hidden from capture</span>
               </span>
             </div>
-            <span className="flex items-center gap-1 text-[10px] text-purple-300 bg-purple-500/10 px-2 py-0.5 rounded border border-purple-500/20">
-              <Cloud className="w-3 h-3" /> Cloud Synced
-            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  const idx = activeTab === 'chat' ? 1 : activeTab === 'snip' ? 2 : 6;
+                  setSelectedImageIndex(idx);
+                  setZoomLevel(1);
+                }}
+                className="flex items-center gap-1.5 text-[11px] font-semibold text-purple-300 hover:text-white bg-purple-500/15 hover:bg-purple-500/30 px-2.5 py-1 rounded-lg border border-purple-500/25 transition-all shadow-sm"
+                title="Click to zoom in and view in detail"
+              >
+                <ZoomIn className="w-3.5 h-3.5 text-purple-400" />
+                <span>Zoom &amp; Details</span>
+              </button>
+              <span className="flex items-center gap-1 text-[10px] text-purple-300 bg-purple-500/10 px-2 py-0.5 rounded border border-purple-500/20">
+                <Cloud className="w-3 h-3" /> Cloud Synced
+              </span>
+            </div>
           </div>
 
-          {/* Real Screenshot */}
-          <div className="relative w-full bg-black">
+          {/* Real Screenshot with Click to Zoom */}
+          <div
+            onClick={() => {
+              const idx = activeTab === 'chat' ? 1 : activeTab === 'snip' ? 2 : 6;
+              setSelectedImageIndex(idx);
+              setZoomLevel(1);
+            }}
+            className="relative w-full bg-black cursor-zoom-in group"
+            title="Click to zoom in and view in detail"
+          >
             {activeTab === 'chat' && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src="/Translucent/chat with AI .png" alt="AI Chat" className="w-full object-cover animate-in fade-in duration-300" />
+              <img src="/Translucent/chat with AI .png" alt="AI Chat" className="w-full object-cover animate-in fade-in duration-300 group-hover:scale-[1.01] transition-transform" />
             )}
             {activeTab === 'snip' && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src="/Translucent/Ghost mode.png" alt="Ghost Stealth Mode" className="w-full object-cover animate-in fade-in duration-300" />
+              <img src="/Translucent/Ghost mode.png" alt="Ghost Stealth Mode" className="w-full object-cover animate-in fade-in duration-300 group-hover:scale-[1.01] transition-transform" />
             )}
             {activeTab === 'browser' && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src="/Translucent/built-in broswer.png" alt="Built-in Browser" className="w-full object-cover animate-in fade-in duration-300" />
+              <img src="/Translucent/built-in broswer.png" alt="Built-in Browser" className="w-full object-cover animate-in fade-in duration-300 group-hover:scale-[1.01] transition-transform" />
             )}
+
+            {/* Hover Floating Zoom Badge */}
+            <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity bg-black/80 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/20 text-xs font-semibold text-white flex items-center gap-1.5 shadow-xl">
+              <ZoomIn className="w-4 h-4 text-purple-400" />
+              <span>Click to view in high resolution</span>
+            </div>
           </div>
         </div>
 
@@ -387,45 +522,59 @@ export default function LandingPage() {
       {/* ─── Real App Screenshots Gallery ─── */}
       <section id="screenshots" className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 border-t border-white/[0.06]">
         <div className="text-center max-w-3xl mx-auto mb-12">
-          <h2 className="text-xs uppercase tracking-widest font-bold text-purple-400 mb-3">Real App Screenshots</h2>
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-xs font-bold text-purple-300 mb-3">
+            <ZoomIn className="w-3.5 h-3.5 text-purple-400" />
+            <span>INTERACTIVE SCREENSHOT GALLERY</span>
+          </div>
           <h3 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
             See Translucent in Action
           </h3>
-          <p className="mt-4 text-zinc-400 text-sm">
-            Every pixel of your workflow, invisible to screen capture — but visible to you.
+          <p className="mt-3 text-zinc-400 text-sm max-w-xl mx-auto">
+            Every pixel of your workflow, invisible to screen capture — but visible to you. Click any screenshot below to zoom in, inspect high-resolution details, and read full architecture notes.
           </p>
         </div>
 
         {/* Screenshot Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[
-            { src: '/Translucent/Full Invisible Broswer.png', label: 'Full Invisible Browser', caption: 'Float a full browser overlay above any app — completely hidden from screen capture.', tag: '🌐 Browser' },
-            { src: '/Translucent/chat with AI .png', label: 'Chat with AI', caption: 'Ask Gemini, GPT, or Groq anything — directly inside your translucent floating panel.', tag: '🤖 AI Chat' },
-            { src: '/Translucent/Ghost mode.png', label: 'Ghost Mode Active', caption: 'Ghost Mode makes clicks pass through the window — it becomes truly invisible.', tag: '👻 Ghost Mode' },
-            { src: '/Translucent/settings.png', label: 'AI Provider Settings', caption: 'Switch between Gemini, GPT, Groq, DeepSeek or OpenRouter with your own API key.', tag: '⚙️ Settings' },
-            { src: '/Translucent/preloaded prompts.png', label: 'Preloaded Prompts', caption: 'One-click smart prompts for interviews, code review, debugging, and more.', tag: '⚡ Prompts' },
-            { src: '/Translucent/audio input settings.png', label: 'Audio Input Settings', caption: 'Route meeting audio or microphone into AI context for live captions.', tag: '🎙️ Audio' },
-            { src: '/Translucent/built-in broswer.png', label: 'Built-in Browser', caption: 'Dual WebView2 multi-tab browser — browse docs and AI side by side.', tag: '📑 Multi-Tab' },
-            { src: '/Translucent/Device susbscrition .png', label: 'Device & Subscription', caption: 'Manage your licensed devices and subscription status from one place.', tag: '🔐 License' },
-          ].map((shot, i) => (
+          {galleryScreenshots.map((shot, i) => (
             <div
               key={i}
-              className="group relative rounded-2xl overflow-hidden border border-white/[0.08] bg-[#121217]/80 hover:border-purple-500/40 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-purple-950/40"
+              onClick={() => {
+                setSelectedImageIndex(i);
+                setZoomLevel(1);
+              }}
+              className="group relative rounded-2xl overflow-hidden border border-white/[0.08] bg-[#121217]/80 hover:border-purple-500/50 transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl hover:shadow-purple-950/60 cursor-pointer"
             >
               {/* Screenshot Image */}
               <div className="relative w-full aspect-video overflow-hidden bg-black/40">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={shot.src}
                   alt={shot.label}
-                  className="w-full h-full object-cover object-top group-hover:scale-[1.04] transition-transform duration-500"
+                  className="w-full h-full object-cover object-top group-hover:scale-[1.05] transition-transform duration-500"
                 />
-                {/* Overlay on hover */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-3">
-                  <p className="text-white text-[11px] leading-relaxed">{shot.caption}</p>
+                {/* Overlay on hover with zoom badge */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-between p-3.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-purple-500/30 text-purple-200 border border-purple-400/30 backdrop-blur-md">
+                      {shot.badge}
+                    </span>
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-purple-600/90 text-white text-[11px] font-bold shadow-lg backdrop-blur-md">
+                      <ZoomIn className="w-3.5 h-3.5" />
+                      <span>Zoom in</span>
+                    </span>
+                  </div>
+                  <div>
+                    <p className="text-white text-xs font-medium leading-relaxed drop-shadow-md">{shot.caption}</p>
+                    <p className="text-[10px] text-purple-300 mt-1 font-mono flex items-center gap-1">
+                      <span>Click to view in detail</span>
+                      <span>→</span>
+                    </p>
+                  </div>
                 </div>
               </div>
               {/* Card Footer */}
-              <div className="px-3 py-2.5 flex items-center justify-between">
+              <div className="px-3.5 py-2.5 flex items-center justify-between bg-[#15151e]">
                 <span className="text-xs font-semibold text-zinc-200">{shot.label}</span>
                 <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/25">
                   {shot.tag}
@@ -437,6 +586,7 @@ export default function LandingPage() {
 
         {/* Store Banner */}
         <div className="mt-12 rounded-3xl overflow-hidden border border-white/[0.10] shadow-2xl shadow-purple-950/30">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/Translucent/store-banner.jpg"
             alt="Translucent — Your Invisible AI Assistant for Windows"
@@ -862,6 +1012,175 @@ export default function LandingPage() {
           </div>
         </div>
       </footer>
+
+      {/* ─── Lightbox Modal for Zoom & Detail View ─── */}
+      {selectedImageIndex !== null && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex flex-col items-center justify-between bg-black/95 backdrop-blur-2xl p-3 sm:p-6 animate-in fade-in duration-200"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setSelectedImageIndex(null);
+              setZoomLevel(1);
+            }
+          }}
+        >
+          {/* Top Bar: Title, Count, and Controls */}
+          <div className="w-full max-w-6xl flex items-center justify-between gap-3 pb-3 border-b border-white/10 shrink-0">
+            <div className="flex items-center gap-3 min-w-0">
+              <span className="text-xs uppercase font-bold tracking-wider px-2.5 py-1 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30 shrink-0">
+                {galleryScreenshots[selectedImageIndex].tag}
+              </span>
+              <div className="min-w-0">
+                <h3 className="text-sm sm:text-base font-bold text-white tracking-tight truncate">
+                  {galleryScreenshots[selectedImageIndex].label}
+                </h3>
+                <span className="text-[11px] text-zinc-400 font-mono">
+                  Screenshot {selectedImageIndex + 1} of {galleryScreenshots.length}
+                </span>
+              </div>
+            </div>
+
+            {/* Controls Toolbar */}
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+              {/* Zoom Out */}
+              <button
+                onClick={() => setZoomLevel((prev) => Math.max(prev - 0.25, 0.75))}
+                disabled={zoomLevel <= 0.75}
+                className="p-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-zinc-300 hover:text-white disabled:opacity-40 disabled:hover:bg-white/[0.06] transition-colors border border-white/[0.08]"
+                title="Zoom Out (-)"
+              >
+                <ZoomOut className="w-4 h-4" />
+              </button>
+
+              {/* Zoom Level Indicator / Reset */}
+              <button
+                onClick={() => setZoomLevel(1)}
+                className="px-2.5 sm:px-3 py-1.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-xs font-mono font-semibold text-purple-300 hover:text-white transition-colors border border-white/[0.08] flex items-center gap-1"
+                title="Reset Zoom to 100% (0)"
+              >
+                <RotateCcw className="w-3 h-3 opacity-70" />
+                <span>{Math.round(zoomLevel * 100)}%</span>
+              </button>
+
+              {/* Zoom In */}
+              <button
+                onClick={() => setZoomLevel((prev) => Math.min(prev + 0.25, 2.5))}
+                disabled={zoomLevel >= 2.5}
+                className="p-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-zinc-300 hover:text-white disabled:opacity-40 disabled:hover:bg-white/[0.06] transition-colors border border-white/[0.08]"
+                title="Zoom In (+)"
+              >
+                <ZoomIn className="w-4 h-4" />
+              </button>
+
+              {/* View Full Image in New Tab */}
+              <a
+                href={galleryScreenshots[selectedImageIndex].src}
+                target="_blank"
+                rel="noreferrer"
+                className="p-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-zinc-300 hover:text-white transition-colors border border-white/[0.08]"
+                title="Open Original Image in New Tab"
+              >
+                <ExternalLink className="w-4 h-4" />
+              </a>
+
+              {/* Close Button */}
+              <button
+                onClick={() => {
+                  setSelectedImageIndex(null);
+                  setZoomLevel(1);
+                }}
+                className="p-2 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 hover:text-rose-100 transition-colors border border-rose-500/30 ml-1 sm:ml-2"
+                title="Close (Esc)"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Central Image Viewport with Nav Chevrons */}
+          <div className="relative w-full max-w-6xl flex-1 flex items-center justify-center overflow-auto my-2 sm:my-3 select-none">
+            {/* Previous button */}
+            <button
+              onClick={() => {
+                setSelectedImageIndex((prev) => (prev !== null ? (prev - 1 + galleryScreenshots.length) % galleryScreenshots.length : 0));
+                setZoomLevel(1);
+              }}
+              className="absolute left-2 sm:left-4 z-20 p-2.5 sm:p-3 rounded-full bg-black/70 hover:bg-purple-600 text-white border border-white/20 hover:border-purple-400 backdrop-blur-md transition-all shadow-xl hover:scale-110 active:scale-95"
+              title="Previous Screenshot (← Arrow Left)"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+
+            {/* Next button */}
+            <button
+              onClick={() => {
+                setSelectedImageIndex((prev) => (prev !== null ? (prev + 1) % galleryScreenshots.length : 0));
+                setZoomLevel(1);
+              }}
+              className="absolute right-2 sm:right-4 z-20 p-2.5 sm:p-3 rounded-full bg-black/70 hover:bg-purple-600 text-white border border-white/20 hover:border-purple-400 backdrop-blur-md transition-all shadow-xl hover:scale-110 active:scale-95"
+              title="Next Screenshot (→ Arrow Right)"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
+
+            {/* Scaled Image */}
+            <div
+              className="relative max-h-full max-w-full flex items-center justify-center cursor-zoom-in"
+              onDoubleClick={() => setZoomLevel((prev) => (prev > 1 ? 1 : 1.75))}
+              title="Double-click to toggle zoom (100% / 175%)"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={galleryScreenshots[selectedImageIndex].src}
+                alt={galleryScreenshots[selectedImageIndex].label}
+                style={{ transform: `scale(${zoomLevel})` }}
+                className="max-h-[52vh] sm:max-h-[62vh] w-auto max-w-full object-contain rounded-xl shadow-2xl transition-transform duration-200"
+              />
+            </div>
+          </div>
+
+          {/* Bottom Bar: Detailed Description & Interactive Thumbnail Navigator */}
+          <div className="w-full max-w-6xl bg-[#121217]/95 border border-white/10 rounded-2xl p-3 sm:p-4 shrink-0 backdrop-blur-xl space-y-2.5 shadow-2xl">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+              <p className="text-xs sm:text-sm font-semibold text-zinc-100">
+                {galleryScreenshots[selectedImageIndex].caption}
+              </p>
+              <span className="text-[10px] text-zinc-400 font-mono hidden sm:inline-block">
+                Hotkeys: Esc (Close) • ← → (Navigate) • +/- (Zoom) • Double-click (Toggle)
+              </span>
+            </div>
+            {galleryScreenshots[selectedImageIndex].details && (
+              <p className="text-[11px] sm:text-xs text-zinc-400 leading-relaxed border-t border-white/[0.06] pt-2">
+                {galleryScreenshots[selectedImageIndex].details}
+              </p>
+            )}
+
+            {/* Thumbnail Strip */}
+            <div className="flex items-center gap-2 overflow-x-auto pt-1 pb-1">
+              {galleryScreenshots.map((item, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => {
+                    setSelectedImageIndex(idx);
+                    setZoomLevel(1);
+                  }}
+                  className={`relative shrink-0 rounded-lg overflow-hidden border transition-all h-11 w-18 sm:h-12 sm:w-20 ${
+                    selectedImageIndex === idx
+                      ? 'border-purple-500 ring-2 ring-purple-500/60 scale-105 opacity-100'
+                      : 'border-white/10 opacity-50 hover:opacity-90 hover:border-white/30'
+                  }`}
+                  title={item.label}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={item.src} alt={item.label} className="w-full h-full object-cover object-top" />
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
